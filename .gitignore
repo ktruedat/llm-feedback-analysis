@@ -1,0 +1,8 @@
+*.test
+*.out
+*.tar
+.idea
+.env
+.DS_Store
+.vscode
+golangci_linter_report.xml
