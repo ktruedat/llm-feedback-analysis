@@ -1,0 +1,187 @@
+version: "2"
+
+run:
+  # Timeout for analysis, e.g. 30s, 5m.
+  # Default: 1m
+  timeout: 5m
+  concurrency: 4
+  tests: true
+
+output:
+  formats:
+    checkstyle:
+      path: golangci_linter_report.xml
+
+# This file contains only configs which differ from defaults.
+# All possible options can be found here https://github.com/golangci/golangci-lint/blob/main/.golangci.reference.yml
+linters:
+  enable:
+    - errcheck
+    - govet
+    - ineffassign
+    - staticcheck
+    - unused
+    - asasalint
+    - asciicheck
+    - bidichk
+    - bodyclose
+    - copyloopvar
+    - cyclop
+    - dupl
+    - durationcheck
+    - errname
+    - errorlint
+    - exhaustive
+    - copyloopvar
+    - forbidigo
+    - funlen
+    - gocheckcompilerdirectives
+    - gochecknoinits
+    - gochecksumtype
+    - gocognit
+    - goconst
+    - gocritic
+    - gocyclo
+    - godot
+    - gomoddirectives
+    - gomodguard
+    - goprintffuncname
+    - gosec
+    - ineffassign
+    - intrange
+    - lll
+    - loggercheck
+    - makezero
+    - mirror
+    - musttag
+    - nakedret
+    - nestif
+    - nilerr
+    - nilnil
+    - noctx
+    - nolintlint
+    - nonamedreturns
+    - nosprintfhostport
+    - perfsprint
+    - predeclared
+    - promlinter
+    - protogetter
+    - revive
+    - rowserrcheck
+    - sloglint
+    - spancheck
+    - sqlclosecheck
+    - testableexamples
+    - testifylint
+    - tparallel
+    - unconvert
+    - unparam
+    - unused
+    - usestdlibvars
+    - wastedassign
+    - whitespace
+    - zerologlint
+
+  exclusions:
+    rules:
+      # Exclude some linters from running on tests files.
+      - path: \_test\.go
+        linters:
+          - gocyclo
+          - errcheck
+          - dupl
+          - gosec
+          - revive
+          - gocognit
+          - funlen
+
+  settings:
+    cyclop:
+      max-complexity: 20
+
+    errcheck:
+      check-type-assertions: true
+
+    exhaustive:
+      check:
+        - switch
+        - map
+
+    exhaustruct:
+      exclude:
+        - "^net/http.Client$"
+        - "^net/http.Cookie$"
+        - "^net/http.Request$"
+        - "^net/http.Response$"
+        - "^net/http.Server$"
+        - "^net/http.Transport$"
+        - "^net/url.URL$"
+        - "^os/exec.Cmd$"
+        - "^reflect.StructField$"
+        - "^log/slog$"
+        - "^github.com/stretchr/testify/mock.Mock$"
+        - "^github.com/google/wire$"
+        - "^gopkg.in/yaml.v3.Node$"
+
+    funlen:
+      lines: -1
+      statements: 50
+      ignore-comments: true
+
+    gocognit:
+      min-complexity: 24
+
+    gocritic:
+      settings:
+        captLocal:
+          paramsOnly: false
+        underef:
+          skipRecvDeref: false
+
+    mnd:
+      ignored-functions:
+        - flag.Arg
+        - flag.Duration.*
+        - flag.Float.*
+        - flag.Int.*
+        - flag.Uint.*
+        - os.Chmod
+        - os.Mkdir.*
+        - os.OpenFile
+        - os.WriteFile
+        - math.*
+
+    govet:
+      enable-all: true
+      disable:
+        - fieldalignment
+      settings:
+        shadow:
+          strict: false
+
+    inamedparam:
+      skip-single-param: true
+
+    nakedret:
+      max-func-lines: 0
+
+    nolintlint:
+      allow-no-explanation: [ funlen, gocognit, lll ]
+      require-explanation: true
+      require-specific: true
+
+    perfsprint:
+      strconcat: false
+
+    rowserrcheck:
+      packages:
+        - github.com/jmoiron/sqlx
+
+    revive:
+      rules:
+        - name: unexported-return
+          disabled: true
+        - name: unused-parameter
+        - name: unused-receiver
+        - name: package-comments
+          disabled: true
