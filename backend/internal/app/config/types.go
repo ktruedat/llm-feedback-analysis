@@ -161,3 +161,41 @@ func (j JWT) Validate() error {
 
 	return nil
 }
+
+type LLMAnalysis struct {
+	MinimumNewFeedbacksForAnalysis int    `yaml:"min_new_feedbacks_for_analysis" env:"MIN_NEW_FEEDBACKS_FOR_ANALYSIS"`
+	MaxFeedbacksInContext          int    `yaml:"max_feedbacks_in_context" env:"MAX_FEEDBACKS_IN_CONTEXT"`
+	EnableDebounce                 bool   `yaml:"enable_debounce" env:"ENABLE_DEBOUNCE"`
+	DebounceMinutes                int    `yaml:"debounce_minutes" env:"DEBOUNCE_MINUTES"`
+	MaxTokensPerRequest            int    `yaml:"max_tokens_per_request" env:"MAX_TOKENS_PER_REQUEST"`
+	OpenAIModel                    string `yaml:"openai_model" env:"OPENAI_MODEL"`
+	OpenAIAPIKey                   string `yaml:"openai_api_key" env:"OPENAI_API_KEY"`
+}
+
+func (l LLMAnalysis) Validate() error {
+	if l.MinimumNewFeedbacksForAnalysis <= 0 {
+		return fmt.Errorf("minimum_new_feedbacks_for_analysis must be greater than 0")
+	}
+
+	if l.MaxFeedbacksInContext <= 0 {
+		return fmt.Errorf("max_feedbacks_in_context must be greater than 0")
+	}
+
+	if l.EnableDebounce && l.DebounceMinutes <= 0 {
+		return fmt.Errorf("debounce_minutes must be greater than 0 when debounce is enabled")
+	}
+
+	if l.MaxTokensPerRequest <= 0 {
+		return fmt.Errorf("max_tokens_per_request must be greater than 0")
+	}
+
+	if strings.TrimSpace(l.OpenAIModel) == "" {
+		return fmt.Errorf("openai_model cannot be empty")
+	}
+
+	if strings.TrimSpace(l.OpenAIAPIKey) == "" {
+		return fmt.Errorf("openai_api_key cannot be empty")
+	}
+
+	return nil
+}

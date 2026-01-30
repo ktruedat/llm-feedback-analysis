@@ -24,10 +24,27 @@ jwt:
   # The secret key is for signing and verifying JWT tokens
   # MUST be at least 32 characters long
   # Use a strong, randomly generated secret (with `openssl rand -base64 64`)
-  # It is set via JWT_SECRET environment variable.
+  # It is set via JWT_SECRET environment variable and shouldn't be commited to version control.
 
   # Signing algorithm: HS256, HS384, or HS512 (default: HS256)
   algorithm: "HS256"
   # Token expiration time in hours (default: 24 hours)
   # Can be overridden via JWT_EXPIRATION_HOURS environment variable
   expiration_hours: 24
+
+llm_analysis:
+  # Minimum number of new feedbacks required before triggering analysis
+  min_new_feedbacks_for_analysis: 7
+  # Maximum number of feedbacks to include in a single analysis request
+  max_feedbacks_in_context: 50
+  # Enable debounce to wait after last feedback before analyzing - for rate limiting
+  enable_debounce: false
+  # Number of minutes to wait after last feedback (if debounce is enabled) - for rate limiting
+  debounce_minutes: 1
+  # Maximum tokens per request (for context window management and rate limiting)
+  max_tokens_per_request: 5000
+  # OpenAI model to use (e.g., gpt-4o, gpt-5, gpt-5-mini)
+  openai_model: "gpt-5-mini-2025-08-07"
+  # OpenAI API key
+  # It is set via LLM_ANALYSIS_OPENAI_API_KEY environment variable and shouldn't be commited to version control.
+  openai_api_key: ""

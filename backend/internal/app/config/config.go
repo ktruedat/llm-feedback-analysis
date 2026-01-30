@@ -9,12 +9,13 @@ import (
 )
 
 type Config struct {
-	Profile    Profile    `yaml:"profile" envPrefix:"PROFILE_"`
-	Server     Server     `yaml:"server" envPrefix:"SERVER_"`
-	Pagination Pagination `yaml:"pagination" envPrefix:"PAGINATION_"`
-	DB         Database   `yaml:"database" envPrefix:"DATABASE_"`
-	Tracing    Tracing    `yaml:"tracing" envPrefix:"TRACING_"`
-	JWT        JWT        `yaml:"jwt" envPrefix:"JWT_"`
+	Profile     Profile     `yaml:"profile" envPrefix:"PROFILE_"`
+	Server      Server      `yaml:"server" envPrefix:"SERVER_"`
+	Pagination  Pagination  `yaml:"pagination" envPrefix:"PAGINATION_"`
+	DB          Database    `yaml:"database" envPrefix:"DATABASE_"`
+	Tracing     Tracing     `yaml:"tracing" envPrefix:"TRACING_"`
+	JWT         JWT         `yaml:"jwt" envPrefix:"JWT_"`
+	LLMAnalysis LLMAnalysis `yaml:"llm_analysis" envPrefix:"LLM_ANALYSIS_"`
 }
 
 func New(path string) (*Config, error) {
@@ -57,6 +58,7 @@ func (c *Config) Validate() error {
 		c.Tracing,
 		c.Profile,
 		c.JWT,
+		c.LLMAnalysis,
 	}
 
 	for _, v := range components {
