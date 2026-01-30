@@ -1,0 +1,474 @@
+components:
+  schemas:
+    requests.CreateFeedbackRequest:
+      description: Request payload for creating a new feedback submission.
+      properties:
+        comment:
+          description: Feedback comment text, 1-1000 characters (required)
+          example: Really nice!
+          type: string
+        rating:
+          description: Rating value from 1 to 5 (required)
+          example: 5
+          maximum: 5
+          minimum: 1
+          type: integer
+      required:
+      - rating
+      type: object
+    requests.LoginUserRequest:
+      description: Request payload for user login/authentication.
+      properties:
+        email:
+          description: User email address (required)
+          example: user@example.com
+          type: string
+        password:
+          description: User password (required)
+          example: SecurePassword123!
+          type: string
+      required:
+      - email
+      - password
+      type: object
+    requests.RegisterUserRequest:
+      description: Request payload for registering a new user account.
+      properties:
+        email:
+          description: User email address (required, must be valid email)
+          example: user@example.com
+          type: string
+        password:
+          description: User password (required, minimum 8 characters)
+          example: SecurePassword123!
+          minLength: 8
+          type: string
+      required:
+      - email
+      - password
+      type: object
+    responses.FeedbackListResponse:
+      description: Response payload containing a list of feedback entries.
+      properties:
+        feedbacks:
+          description: List of feedback entries
+          items:
+            $ref: '#/components/schemas/responses.FeedbackResponse'
+          type: array
+        total:
+          description: Total number of feedback entries
+          example: 10
+          type: integer
+      type: object
+    responses.FeedbackResponse:
+      description: Response payload containing feedback details.
+      properties:
+        comment:
+          description: Feedback comment text
+          example: Great service!
+          type: string
+        created_at:
+          description: Creation timestamp
+          example: "2024-01-01T00:00:00Z"
+          type: string
+        deleted_at:
+          description: Deletion timestamp (if deleted)
+          example: "2024-01-01T00:00:00Z"
+          type: string
+        id:
+          description: Feedback unique identifier
+          example: 550e8400-e29b-41d4-a716-446655440000
+          type: string
+        rating:
+          description: Rating value from 1 to 5
+          example: 5
+          type: integer
+        updated_at:
+          description: Last update timestamp
+          example: "2024-01-01T00:00:00Z"
+          type: string
+      type: object
+    responses.LoginUserResponse:
+      description: Response payload containing authentication token and user details.
+      properties:
+        expires_in:
+          description: Token expiration time in seconds
+          example: 3600
+          type: integer
+        token:
+          description: JWT authentication token
+          example: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
+          type: string
+      type: object
+    responses.RegisterUserResponse:
+      description: Response payload containing user registration details.
+      properties:
+        created_at:
+          description: Account creation timestamp
+          example: "2024-01-01T00:00:00Z"
+          type: string
+        email:
+          description: User email address
+          example: user@example.com
+          type: string
+        id:
+          description: User unique identifier
+          example: 550e8400-e29b-41d4-a716-446655440000
+          type: string
+      type: object
+info:
+  contact: {}
+  description: This is a LLM Feedback Analysis API server.
+  title: LLM Feedback Analysis API
+  version: "1.0"
+openapi: 3.0.0
+paths:
+  /auth/login:
+    post:
+      description: Authenticate user with email and password, returns JWT token
+      parameters:
+      - description: User login request
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/components/schemas/requests.LoginUserRequest'
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/requests.LoginUserRequest'
+        description: User login request
+        required: true
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/responses.LoginUserResponse'
+          description: User authenticated successfully
+        "400":
+          content:
+            application/json:
+              schema:
+                additionalProperties: true
+                type: object
+          description: Bad request - invalid request body
+        "401":
+          content:
+            application/json:
+              schema:
+                additionalProperties: true
+                type: object
+          description: Unauthorized - invalid credentials
+        "500":
+          content:
+            application/json:
+              schema:
+                additionalProperties: true
+                type: object
+          description: Internal server error
+      summary: Login user
+      tags:
+      - auth
+  /auth/register:
+    post:
+      description: Create a new user account with email and password
+      parameters:
+      - description: User registration request
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/components/schemas/requests.RegisterUserRequest'
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/requests.RegisterUserRequest'
+        description: User registration request
+        required: true
+      responses:
+        "201":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/responses.RegisterUserResponse'
+          description: User registered successfully
+        "400":
+          content:
+            application/json:
+              schema:
+                additionalProperties: true
+                type: object
+          description: Bad request - invalid request body or validation error
+        "409":
+          content:
+            application/json:
+              schema:
+                additionalProperties: true
+                type: object
+          description: Conflict - email already exists
+        "500":
+          content:
+            application/json:
+              schema:
+                additionalProperties: true
+                type: object
+          description: Internal server error
+      summary: Register a new user
+      tags:
+      - auth
+  /feedbacks:
+    get:
+      description: Retrieve a list of feedback entries with optional pagination
+      parameters:
+      - description: 'Maximum number of feedbacks to return (default: 100)'
+        example: 10
+        in: query
+        name: limit
+        schema:
+          type: integer
+      - description: 'Number of feedbacks to skip (default: 0)'
+        example: 0
+        in: query
+        name: offset
+        schema:
+          type: integer
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/responses.FeedbackListResponse'
+          description: Feedbacks retrieved successfully
+        "400":
+          content:
+            application/json:
+              schema:
+                additionalProperties: true
+                type: object
+          description: Bad request - invalid query parameters
+        "401":
+          content:
+            application/json:
+              schema:
+                additionalProperties: true
+                type: object
+          description: Unauthorized - invalid or missing JWT token
+        "500":
+          content:
+            application/json:
+              schema:
+                additionalProperties: true
+                type: object
+          description: Internal server error
+      security:
+      - BearerAuth: []
+      summary: List feedbacks
+      tags:
+      - feedbacks
+    post:
+      description: Create a new feedback submission with rating and comment
+      parameters:
+      - description: Feedback creation request
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/components/schemas/requests.CreateFeedbackRequest'
+      requestBody:
+        content:
+          application/json:
+            examples:
+              comment_too_long:
+                value:
+                  comment: This comment is way too long and exceeds the maximum allowed
+                    length of 1000 characters. Lorem ipsum dolor sit amet, consectetur
+                    adipiscing elit. Sed do eiusmod tempor incididunt ut labore et
+                    dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation
+                    ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis
+                    aute irure dolor in reprehenderit in voluptate velit esse cillum
+                    dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat
+                    non proident, sunt in culpa qui officia deserunt mollit anim id
+                    est laborum. Sed ut perspiciatis unde omnis iste natus error sit
+                    voluptatem accusantium doloremque laudantium, totam rem aperiam,
+                    eaque ipsa quae ab illo inventore veritatis et quasi architecto
+                    beatae vitae dicta sunt explicabo. Nemo enim ipsam voluptatem
+                    quia voluptas sit aspernatur aut odit aut fugit, sed quia consequuntur
+                    magni dolores eos qui ratione voluptatem sequi nesciunt. Neque
+                    porro quisquam est, qui dolorem ipsum quia dolor sit amet, consectetur,
+                    adipisci velit, sed quia non numquam eius modi tempora incidunt
+                    ut labore et dolore magnam aliquam quaerat voluptatem. Ut enim
+                    ad minima veniam, quis nostrum exercitationem ullam corporis suscipit
+                    laboriosam, nisi ut aliquid ex ea commodi consequatur? Quis autem
+                    vel eum iure reprehenderit qui in ea voluptate velit esse quam
+                    nihil molestiae consequatur, vel illum qui dolorem eum fugiat
+                    quo voluptas nulla pariatur?
+                  rating: 2
+              empty_comment:
+                value:
+                  comment: ""
+                  rating: 3
+              full:
+                value:
+                  comment: Overall, I'm very satisfied with the service. The response
+                    time was excellent and the staff was very helpful. There were
+                    a few minor issues, but they were quickly resolved.
+                  rating: 4
+              invalid_rating_high:
+                value:
+                  comment: This rating is too high
+                  rating: 6
+              invalid_rating_low:
+                value:
+                  comment: This rating is too low
+                  rating: 0
+              minimal:
+                value:
+                  comment: Great service!
+                  rating: 5
+            schema:
+              $ref: '#/components/schemas/requests.CreateFeedbackRequest'
+        description: Feedback creation request
+        required: true
+      responses:
+        "201":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/responses.FeedbackResponse'
+          description: Feedback created successfully
+        "400":
+          content:
+            application/json:
+              schema:
+                additionalProperties: true
+                type: object
+          description: Bad request - invalid request body
+        "401":
+          content:
+            application/json:
+              schema:
+                additionalProperties: true
+                type: object
+          description: Unauthorized - invalid or missing JWT token
+        "500":
+          content:
+            application/json:
+              schema:
+                additionalProperties: true
+                type: object
+          description: Internal server error
+      security:
+      - BearerAuth: []
+      summary: Create a new feedback
+      tags:
+      - feedbacks
+  /feedbacks/{id}:
+    delete:
+      description: Soft delete a feedback entry by its unique identifier. Requires
+        admin role.
+      parameters:
+      - description: Feedback ID
+        example: 550e8400-e29b-41d4-a716-446655440000
+        in: path
+        name: id
+        required: true
+        schema:
+          type: string
+      responses:
+        "204":
+          description: Feedback deleted successfully
+        "400":
+          content:
+            application/json:
+              schema:
+                additionalProperties: true
+                type: object
+          description: Bad request - invalid feedback ID format
+        "401":
+          content:
+            application/json:
+              schema:
+                additionalProperties: true
+                type: object
+          description: Unauthorized - invalid or missing JWT token
+        "403":
+          content:
+            application/json:
+              schema:
+                additionalProperties: true
+                type: object
+          description: Forbidden - admin role required
+        "404":
+          content:
+            application/json:
+              schema:
+                additionalProperties: true
+                type: object
+          description: Feedback not found
+        "500":
+          content:
+            application/json:
+              schema:
+                additionalProperties: true
+                type: object
+          description: Internal server error
+      security:
+      - BearerAuth: []
+      summary: Delete feedback (Admin only)
+      tags:
+      - feedbacks
+    get:
+      description: Retrieve a specific feedback entry by its unique identifier
+      parameters:
+      - description: Feedback ID
+        example: 550e8400-e29b-41d4-a716-446655440000
+        in: path
+        name: id
+        required: true
+        schema:
+          type: string
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/responses.FeedbackResponse'
+          description: Feedback retrieved successfully
+        "400":
+          content:
+            application/json:
+              schema:
+                additionalProperties: true
+                type: object
+          description: Bad request - invalid feedback ID format
+        "401":
+          content:
+            application/json:
+              schema:
+                additionalProperties: true
+                type: object
+          description: Unauthorized - invalid or missing JWT token
+        "404":
+          content:
+            application/json:
+              schema:
+                additionalProperties: true
+                type: object
+          description: Feedback not found
+        "500":
+          content:
+            application/json:
+              schema:
+                additionalProperties: true
+                type: object
+          description: Internal server error
+      security:
+      - BearerAuth: []
+      summary: Get feedback by ID
+      tags:
+      - feedbacks
+servers:
+- url: https://localhost:8080/api
