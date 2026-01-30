@@ -1,7 +1,6 @@
 package v1
 
 import (
-	"encoding/json"
 	"net/http"
 
 	"github.com/go-chi/chi/v5"
@@ -51,15 +50,22 @@ func (h *Handlers) CreateFeedback(resp http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 	logger := h.logger.WithSpan(ctx)
 
-	var req requests.CreateFeedbackRequest
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+	req, err := parsePayloadData[requests.CreateFeedbackRequest](r, r.Body)
+	if err != nil {
 		logger.RecordSpanError(ctx, err)
 		h.responder.RespondContent(resp, ce.ErrBadRequest("invalid request body", ce.WithCauseError(err)))
 		return
 	}
 
-	logger.Info("creating feedback", "rating", req.Rating)
-	feedback, err := h.feedbackService.CreateFeedback(ctx, &req)
+	userID, err := uuid.Parse(req.Claims.UserID)
+	if err != nil {
+		logger.RecordSpanError(ctx, err)
+		h.responder.RespondContent(resp, ce.ErrUnauthorized("invalid user ID in token", ce.WithCauseError(err)))
+		return
+	}
+
+	logger.Info("creating feedback", "rating", req.Data.Rating)
+	feedback, err := h.feedbackService.CreateFeedback(ctx, userID, &req.Data)
 	if err != nil {
 		logger.RecordSpanError(ctx, err)
 		logger.Error("error creating feedback", err)

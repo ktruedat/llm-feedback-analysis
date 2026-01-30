@@ -11,8 +11,8 @@ import (
 
 // FeedbackService defines the interface for feedback business logic operations.
 type FeedbackService interface {
-	// CreateFeedback creates a new feedback submission.
-	CreateFeedback(ctx context.Context, req *requests.CreateFeedbackRequest) (*feedback.Feedback, error)
+	// CreateFeedback creates a new feedback submission for the authenticated user.
+	CreateFeedback(ctx context.Context, userID uuid.UUID, req *requests.CreateFeedbackRequest) (*feedback.Feedback, error)
 
 	// GetFeedbackByID retrieves a feedback entry by its ID.
 	GetFeedbackByID(ctx context.Context, feedbackID uuid.UUID) (*feedback.Feedback, error)
