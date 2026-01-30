@@ -84,6 +84,10 @@ func (s *svc) createFeedback(
 	}
 
 	logger.Info("feedback created successfully", "feedback_id", fb.ID().String())
+
+	s.analyzer.EnqueueFeedback(ctx, fb)
+	logger.Info("feedback sent to analyzer", "feedback_id", fb.ID().String())
+
 	return fb, nil
 }
 

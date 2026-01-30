@@ -15,6 +15,7 @@ type svc struct {
 	errChecker    errors.ErrorChecker
 	feedRepo      apprepo.FeedbackRepository
 	transactor    repository.Transactor
+	analyzer      services.AnalyzerService
 }
 
 func NewFeedbackService(
@@ -23,6 +24,7 @@ func NewFeedbackService(
 	errChecker errors.ErrorChecker,
 	feedRepo apprepo.FeedbackRepository,
 	transactor repository.Transactor,
+	analyzer services.AnalyzerService,
 ) services.FeedbackService {
 	return &svc{
 		logger:        traceLogger.NewGroup("feedback_service"),
@@ -30,5 +32,6 @@ func NewFeedbackService(
 		errChecker:    errChecker,
 		feedRepo:      feedRepo,
 		transactor:    transactor,
+		analyzer:      analyzer,
 	}
 }
