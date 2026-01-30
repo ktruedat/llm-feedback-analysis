@@ -42,6 +42,7 @@ function FeedbackForm() {
       rating: 5,
       comment: '',
     },
+    mode: 'onChange',
   });
 
   const currentRating = watch('rating');
@@ -54,7 +55,13 @@ function FeedbackForm() {
     try {
       await apiClient.createFeedback(data.rating, data.comment);
       setSuccess(true);
-      reset();
+      // Reset form to default values
+      reset({
+        rating: 5,
+        comment: '',
+      });
+      // Ensure the rating is set properly
+      setValue('rating', 5);
       setTimeout(() => setSuccess(false), 5000);
     } catch (err: any) {
       if (err.response?.status === 401) {
@@ -137,12 +144,12 @@ function FeedbackForm() {
                         }`}
                       >
                         <input
-                          {...register('rating', { valueAsNumber: true })}
                           type="radio"
                           value={value}
+                          checked={isSelected}
                           className="sr-only"
-                          onChange={(e) => {
-                            setValue('rating', parseInt(e.target.value));
+                          onChange={() => {
+                            setValue('rating', value, { shouldValidate: true });
                           }}
                         />
                         <div className="text-2xl">
