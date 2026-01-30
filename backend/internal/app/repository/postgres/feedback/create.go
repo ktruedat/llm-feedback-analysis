@@ -26,17 +26,17 @@ func (r *repo) Create(
 		deletedAt = &dt
 	}
 
-	_, err := queries.CreateFeedback(
+	if _, err := queries.CreateFeedback(
 		ctx, sqlc.CreateFeedbackParams{
 			ID:        fb.ID(),
+			UserID:    fb.UserID(),
 			Rating:    int32(fb.Rating().Value()),
 			Comment:   fb.Comment().Value(),
 			CreatedAt: fb.CreatedAt(),
 			UpdatedAt: fb.UpdatedAt(),
 			DeletedAt: deletedAt,
 		},
-	)
-	if err != nil {
+	); err != nil {
 		return fmt.Errorf("failed to create feedback: %w", err)
 	}
 

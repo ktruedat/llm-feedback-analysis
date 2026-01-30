@@ -12,7 +12,7 @@ import (
 )
 
 const getFeedback = `-- name: GetFeedback :one
-SELECT id, rating, comment, created_at, updated_at, deleted_at FROM feedback.feedbacks
+SELECT id, rating, comment, created_at, updated_at, deleted_at, user_id FROM feedback.feedbacks
 WHERE id = $1
 `
 
@@ -26,6 +26,7 @@ func (q *Queries) GetFeedback(ctx context.Context, id uuid.UUID) (Feedback, erro
 		&i.CreatedAt,
 		&i.UpdatedAt,
 		&i.DeletedAt,
+		&i.UserID,
 	)
 	return i, err
 }

@@ -1,6 +1,7 @@
 -- name: CreateFeedback :one
 INSERT INTO feedback.feedbacks (
     id,
+    user_id,
     rating,
     comment,
     created_at,
@@ -8,10 +9,11 @@ INSERT INTO feedback.feedbacks (
     deleted_at
 ) VALUES (
     $1, -- id
-    $2, -- rating
-    $3, -- comment
-    $4, -- created_at
-    $5, -- updated_at
-    $6  -- deleted_at
+    $2, -- user_id
+    $3, -- rating
+    $4, -- comment
+    $5, -- created_at
+    $6, -- updated_at
+    $7  -- deleted_at
 )
 RETURNING *;

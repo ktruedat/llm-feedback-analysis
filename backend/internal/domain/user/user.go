@@ -18,8 +18,7 @@ import (
 // - Email cannot be changed after creation (for audit purposes)
 //
 // Relationships:
-// - Standalone entity (no parent/child relationships).
-// TODO: - Can be referenced by Feedback (via userID) in the future.
+// - One user can have multiple feedbacks.
 type User struct {
 	id        uuid.UUID
 	email     Email

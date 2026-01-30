@@ -24,6 +24,8 @@ type FeedbackFeedback struct {
 	UpdatedAt time.Time `db:"updated_at"`
 	// Timestamp when the feedback was soft-deleted (NULL if not deleted)
 	DeletedAt *time.Time `db:"deleted_at"`
+	// Reference to the user who submitted the feedback
+	UserID uuid.UUID `db:"user_id"`
 }
 
 // Stores user accounts for authentication and authorization

@@ -10,7 +10,7 @@ import (
 )
 
 const listFeedbacks = `-- name: ListFeedbacks :many
-SELECT id, rating, comment, created_at, updated_at, deleted_at FROM feedback.feedbacks
+SELECT id, rating, comment, created_at, updated_at, deleted_at, user_id FROM feedback.feedbacks
 WHERE deleted_at IS NULL
 ORDER BY created_at DESC
 LIMIT $1 OFFSET $2
@@ -32,6 +32,7 @@ func (q *Queries) ListFeedbacks(ctx context.Context, limit int32, offset int32) 
 			&i.CreatedAt,
 			&i.UpdatedAt,
 			&i.DeletedAt,
+			&i.UserID,
 		); err != nil {
 			return nil, err
 		}

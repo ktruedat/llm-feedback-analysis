@@ -24,4 +24,26 @@ type Feedback struct {
 	UpdatedAt time.Time `db:"updated_at"`
 	// Timestamp when the feedback was soft-deleted (NULL if not deleted)
 	DeletedAt *time.Time `db:"deleted_at"`
+	// Reference to the user who submitted the feedback
+	UserID uuid.UUID `db:"user_id"`
+}
+
+// Stores user accounts for authentication and authorization
+type FeedbackUser struct {
+	// Unique identifier for the user
+	ID uuid.UUID `db:"id"`
+	// User email address (unique, normalized to lowercase)
+	Email string `db:"email"`
+	// Hashed password (never store plain text)
+	PasswordHash string `db:"password_hash"`
+	// Array of user roles (e.g., ["user", "admin"])
+	Roles []string `db:"roles"`
+	// User account status: active, inactive, or suspended
+	Status string `db:"status"`
+	// Timestamp when the user account was created
+	CreatedAt time.Time `db:"created_at"`
+	// Timestamp when the user account was last updated
+	UpdatedAt time.Time `db:"updated_at"`
+	// Timestamp when the user account was soft-deleted (NULL if not deleted)
+	DeletedAt *time.Time `db:"deleted_at"`
 }

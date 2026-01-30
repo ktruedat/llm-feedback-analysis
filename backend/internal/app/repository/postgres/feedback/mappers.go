@@ -16,6 +16,7 @@ func mapSQLCFeedbackToDomain(sqlcFeedback sqlc.Feedback) *feedback.Feedback {
 	// Build domain entity using builder
 	builder := feedback.NewBuilder().
 		WithID(sqlcFeedback.ID).
+		WithUserID(sqlcFeedback.UserID).
 		WithRating(rating).
 		WithComment(comment).
 		WithCreatedAt(sqlcFeedback.CreatedAt).

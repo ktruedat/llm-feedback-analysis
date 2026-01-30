@@ -15,6 +15,7 @@ import (
 const createFeedback = `-- name: CreateFeedback :one
 INSERT INTO feedback.feedbacks (
     id,
+    user_id,
     rating,
     comment,
     created_at,
@@ -22,17 +23,19 @@ INSERT INTO feedback.feedbacks (
     deleted_at
 ) VALUES (
     $1, -- id
-    $2, -- rating
-    $3, -- comment
-    $4, -- created_at
-    $5, -- updated_at
-    $6  -- deleted_at
+    $2, -- user_id
+    $3, -- rating
+    $4, -- comment
+    $5, -- created_at
+    $6, -- updated_at
+    $7  -- deleted_at
 )
-RETURNING id, rating, comment, created_at, updated_at, deleted_at
+RETURNING id, rating, comment, created_at, updated_at, deleted_at, user_id
 `
 
 type CreateFeedbackParams struct {
 	ID        uuid.UUID  `db:"id"`
+	UserID    uuid.UUID  `db:"user_id"`
 	Rating    int32      `db:"rating"`
 	Comment   string     `db:"comment"`
 	CreatedAt time.Time  `db:"created_at"`
@@ -43,6 +46,7 @@ type CreateFeedbackParams struct {
 func (q *Queries) CreateFeedback(ctx context.Context, arg CreateFeedbackParams) (Feedback, error) {
 	row := q.db.QueryRow(ctx, createFeedback,
 		arg.ID,
+		arg.UserID,
 		arg.Rating,
 		arg.Comment,
 		arg.CreatedAt,
@@ -57,6 +61,7 @@ func (q *Queries) CreateFeedback(ctx context.Context, arg CreateFeedbackParams) 
 		&i.CreatedAt,
 		&i.UpdatedAt,
 		&i.DeletedAt,
+		&i.UserID,
 	)
 	return i, err
 }
