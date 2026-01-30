@@ -18,9 +18,16 @@ export interface FeedbackListResponse {
   total: number;
 }
 
+export interface UserInfo {
+  id: string;
+  email: string;
+  roles: string[];
+}
+
 export interface LoginResponse {
   token: string;
   expires_in: number;
+  user: UserInfo;
 }
 
 export interface RegisterResponse {

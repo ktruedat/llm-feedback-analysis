@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { apiClient } from '@/lib/api-client';
 import { useAuthStore } from '@/store/auth-store';
-import { ProtectedRoute } from '@/components/ProtectedRoute';
+import { AdminRoute } from '@/components/AdminRoute';
 import { Feedback } from '@/types';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -154,18 +154,18 @@ Key topics identified: ${topicArray.map((t) => t.topic).join(', ')}`;
 
   if (isLoading) {
     return (
-      <ProtectedRoute>
+      <AdminRoute>
         <div className="flex items-center justify-center min-h-screen">
           <div className="text-center">
             <h1 className="text-2xl font-bold mb-4">Loading...</h1>
           </div>
         </div>
-      </ProtectedRoute>
+      </AdminRoute>
     );
   }
 
   return (
-    <ProtectedRoute>
+    <AdminRoute>
       <div className="min-h-screen bg-gray-50 py-8 px-4 sm:px-6 lg:px-8">
         <div className="max-w-7xl mx-auto space-y-6">
           <div className="flex justify-between items-center">
@@ -349,7 +349,7 @@ Key topics identified: ${topicArray.map((t) => t.topic).join(', ')}`;
           </Card>
         </div>
       </div>
-    </ProtectedRoute>
+    </AdminRoute>
   );
 }
 

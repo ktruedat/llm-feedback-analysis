@@ -24,7 +24,7 @@ type FeedbackFormData = z.infer<typeof feedbackSchema>;
 
 function FeedbackForm() {
   const router = useRouter();
-  const { clearAuth } = useAuthStore();
+  const { clearAuth, isAdmin } = useAuthStore();
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
@@ -76,14 +76,16 @@ function FeedbackForm() {
             <div className="flex justify-between items-center">
               <CardTitle className="text-3xl">Submit Feedback</CardTitle>
               <div className="flex gap-2">
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => router.push('/admin')}
-                >
-                  <LayoutDashboard className="h-4 w-4 mr-2" />
-                  Admin Dashboard
-                </Button>
+                {isAdmin && (
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => router.push('/admin')}
+                  >
+                    <LayoutDashboard className="h-4 w-4 mr-2" />
+                    Admin Dashboard
+                  </Button>
+                )}
                 <Button
                   variant="ghost"
                   size="sm"

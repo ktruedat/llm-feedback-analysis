@@ -24,7 +24,7 @@ type LoginFormData = z.infer<typeof loginSchema>;
 
 export default function LoginPage() {
   const router = useRouter();
-  const { setToken } = useAuthStore();
+  const { setAuth } = useAuthStore();
   const [error, setError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
 
@@ -42,8 +42,15 @@ export default function LoginPage() {
 
     try {
       const response = await apiClient.login(data.email, data.password);
-      setToken(response.token);
-      router.push('/feedback');
+      setAuth(response.token, response.user);
+      
+      // Redirect based on user role
+      const isAdmin = response.user.roles?.includes('admin') || false;
+      if (isAdmin) {
+        router.push('/admin');
+      } else {
+        router.push('/feedback');
+      }
     } catch (err: any) {
       setError(err.response?.data?.message || 'Login failed. Please try again.');
     } finally {

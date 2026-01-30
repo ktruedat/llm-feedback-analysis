@@ -70,9 +70,7 @@ export class ApiClient {
 
   async login(email: string, password: string) {
     const response = await this.client.post('/auth/login', { email, password });
-    if (response.data.token) {
-      this.setToken(response.data.token);
-    }
+    // Response is directly the payload
     return response.data;
   }
 
