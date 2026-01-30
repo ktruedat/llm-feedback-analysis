@@ -10,6 +10,7 @@ import (
 	"github.com/ktruedat/llm-feedback-analysis/internal/app/config"
 	"github.com/ktruedat/llm-feedback-analysis/internal/app/handlers"
 	"github.com/ktruedat/llm-feedback-analysis/internal/app/handlers/http/middleware"
+	"github.com/ktruedat/llm-feedback-analysis/pkg/http/responder"
 	"github.com/ktruedat/llm-feedback-analysis/pkg/log"
 	"github.com/ktruedat/llm-feedback-analysis/pkg/trace"
 	"github.com/ktruedat/llm-feedback-analysis/pkg/tracelog"
@@ -25,10 +26,12 @@ func New() (*App, error) {
 		return nil, fmt.Errorf("failed to initialize tracing: %w", err)
 	}
 
+	restResponder := responder.NewRestResponder(tracing.baseLogger)
 	app := &App{
-		cfg:     cfg,
-		router:  initRouter(),
-		tracing: tracing,
+		cfg:           cfg,
+		router:        initRouter(cfg, tracing.traceLogger, restResponder),
+		tracing:       tracing,
+		restResponder: restResponder,
 	}
 
 	return app, nil
@@ -102,10 +105,11 @@ func initTracing(cfg *config.Config) (*tracing, error) {
 	return &tracing, nil
 }
 
-func initRouter() *chi.Mux {
+func initRouter(cfg *config.Config, logger tracelog.TraceLogger, responder responder.RestResponder) *chi.Mux {
 	router := chi.NewRouter()
 	router.Use(
 		cors.Handler(middleware.CorsOptions()),
+		middleware.JWTMiddleware(&cfg.JWT, logger, responder),
 	)
 
 	return router

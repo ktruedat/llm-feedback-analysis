@@ -2,6 +2,7 @@ package v1
 
 import (
 	"github.com/go-chi/chi/v5"
+	"github.com/ktruedat/llm-feedback-analysis/internal/app/config"
 	"github.com/ktruedat/llm-feedback-analysis/internal/app/handlers"
 	"github.com/ktruedat/llm-feedback-analysis/internal/app/services"
 	"github.com/ktruedat/llm-feedback-analysis/pkg/http/responder"
@@ -14,6 +15,8 @@ type Handlers struct {
 	logger          tracelog.TraceLogger
 	responder       responder.RestResponder
 	feedbackService services.FeedbackService
+	userService     services.UserService
+	jwtCfg          *config.JWT
 	tracingEnabled  bool
 }
 
@@ -22,6 +25,8 @@ func NewHandlers(
 	logger tracelog.TraceLogger,
 	responder responder.RestResponder,
 	feedbackService services.FeedbackService,
+	userService services.UserService,
+	jwtCfg *config.JWT,
 	opts ...trace.InstrumentationOption,
 ) handlers.Handlers {
 	h := &Handlers{
@@ -29,6 +34,8 @@ func NewHandlers(
 		logger:          logger.NewGroup("handlers_http"),
 		responder:       responder,
 		feedbackService: feedbackService,
+		userService:     userService,
+		jwtCfg:          jwtCfg,
 		tracingEnabled:  false,
 	}
 
@@ -42,6 +49,7 @@ func NewHandlers(
 
 func (h *Handlers) RegisterRoutes() {
 	h.registerFeedbackRoutes(h.r)
+	h.registerAuthRoutes(h.r)
 }
 
 // SetTracing implements trace.Instrumented interface.

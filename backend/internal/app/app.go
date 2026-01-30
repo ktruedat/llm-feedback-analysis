@@ -15,7 +15,9 @@ import (
 	"github.com/ktruedat/llm-feedback-analysis/internal/app/config"
 	handlersv1 "github.com/ktruedat/llm-feedback-analysis/internal/app/handlers/http/v1"
 	feedbackRepository "github.com/ktruedat/llm-feedback-analysis/internal/app/repository/postgres/feedback"
+	userRepository "github.com/ktruedat/llm-feedback-analysis/internal/app/repository/postgres/user"
 	"github.com/ktruedat/llm-feedback-analysis/internal/app/services/feedback"
+	"github.com/ktruedat/llm-feedback-analysis/internal/app/services/user"
 	"github.com/ktruedat/llm-feedback-analysis/migrations"
 	ce "github.com/ktruedat/llm-feedback-analysis/pkg/errors"
 	"github.com/ktruedat/llm-feedback-analysis/pkg/http/responder"
@@ -25,11 +27,12 @@ import (
 )
 
 type App struct {
-	cfg     *config.Config
-	router  *chi.Mux
-	tracing *tracing
-	pgxPool *pgxpool.Pool
-	srv     *server
+	cfg           *config.Config
+	router        *chi.Mux
+	tracing       *tracing
+	pgxPool       *pgxpool.Pool
+	srv           *server
+	restResponder responder.RestResponder
 }
 
 func (app *App) Start() error {
@@ -50,17 +53,20 @@ func (app *App) Start() error {
 
 	q := querier.NewPgxPool(pgxPool)
 	feedbackRepo := feedbackRepository.NewFeedbackRepository(q)
+	userRepo := userRepository.NewUserRepository(q)
 
 	errChecker := ce.NewErrorChecker()
 	transactor := sql.NewTransactionManager(pgxPool)
 	feedbackSvc := feedback.NewFeedbackService(logger, &app.cfg.Pagination, errChecker, feedbackRepo, transactor)
+	userSvc := user.NewUserService(logger, errChecker, userRepo, &app.cfg.JWT, transactor)
 
-	restResponder := responder.NewRestResponder(app.tracing.baseLogger)
 	feedbackV1Handlers := handlersv1.NewHandlers(
 		app.router,
 		logger,
-		restResponder,
+		app.restResponder,
 		feedbackSvc,
+		userSvc,
+		&app.cfg.JWT,
 		trace.WithTracingEnabled(app.cfg.Tracing.Enabled),
 	)
 
