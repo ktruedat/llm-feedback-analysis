@@ -13,9 +13,13 @@ import (
 	"github.com/go-chi/chi/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/ktruedat/llm-feedback-analysis/internal/app/config"
+	"github.com/ktruedat/llm-feedback-analysis/internal/app/external/llm"
 	handlersv1 "github.com/ktruedat/llm-feedback-analysis/internal/app/handlers/http/v1"
+	analysisRepository "github.com/ktruedat/llm-feedback-analysis/internal/app/repository/postgres/analysis"
 	feedbackRepository "github.com/ktruedat/llm-feedback-analysis/internal/app/repository/postgres/feedback"
 	userRepository "github.com/ktruedat/llm-feedback-analysis/internal/app/repository/postgres/user"
+	"github.com/ktruedat/llm-feedback-analysis/internal/app/services"
+	"github.com/ktruedat/llm-feedback-analysis/internal/app/services/analysis"
 	"github.com/ktruedat/llm-feedback-analysis/internal/app/services/feedback"
 	"github.com/ktruedat/llm-feedback-analysis/internal/app/services/user"
 	"github.com/ktruedat/llm-feedback-analysis/migrations"
@@ -33,6 +37,7 @@ type App struct {
 	pgxPool       *pgxpool.Pool
 	srv           *server
 	restResponder responder.RestResponder
+	analyzer      services.AnalyzerService
 }
 
 func (app *App) Start() error {
@@ -54,10 +59,42 @@ func (app *App) Start() error {
 	q := querier.NewPgxPool(pgxPool)
 	feedbackRepo := feedbackRepository.NewFeedbackRepository(q)
 	userRepo := userRepository.NewUserRepository(q)
+	analysisRepo := analysisRepository.NewAnalysisRepository(q)
 
 	errChecker := ce.NewErrorChecker()
 	transactor := sql.NewTransactionManager(pgxPool)
-	feedbackSvc := feedback.NewFeedbackService(logger, &app.cfg.Pagination, errChecker, feedbackRepo, transactor)
+
+	// Create OpenAI LLM client
+	llmClient := llm.NewOpenAIClient(
+		app.cfg.LLMAnalysis.OpenAIAPIKey,
+		app.cfg.LLMAnalysis.OpenAIModel,
+		logger,
+	)
+
+	// Create analyzer service
+	analyzerSvc := analysis.NewAnalyzerService(
+		logger,
+		&app.cfg.LLMAnalysis,
+		analysisRepo,
+		feedbackRepo,
+		llmClient,
+	)
+	app.analyzer = analyzerSvc
+
+	// Start analyzer in background with signal context
+	// This ensures the analyzer stops gracefully when the app receives shutdown signals
+	if err := analyzerSvc.Start(ctx); err != nil {
+		return fmt.Errorf("failed to start analyzer: %w", err)
+	}
+
+	feedbackSvc := feedback.NewFeedbackService(
+		logger,
+		&app.cfg.Pagination,
+		errChecker,
+		feedbackRepo,
+		transactor,
+		analyzerSvc,
+	)
 	userSvc := user.NewUserService(logger, errChecker, userRepo, &app.cfg.JWT, transactor)
 
 	feedbackV1Handlers := handlersv1.NewHandlers(
@@ -94,6 +131,13 @@ func (app *App) Start() error {
 func (app *App) Close(ctx context.Context) error {
 	if err := app.srv.Shutdown(ctx); err != nil {
 		return fmt.Errorf("failed to shutdown the server: %w", err)
+	}
+
+	// Stop analyzer gracefully
+	if app.analyzer != nil {
+		if err := app.analyzer.Stop(ctx); err != nil {
+			return fmt.Errorf("failed to stop analyzer: %w", err)
+		}
 	}
 
 	if app.pgxPool != nil {
