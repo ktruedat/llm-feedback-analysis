@@ -31,7 +31,7 @@ type UserService interface {
 	RegisterUser(ctx context.Context, req *requests.RegisterUserRequest) (*user.User, error)
 
 	// AuthenticateUser authenticates a user with email and password.
-	// Returns a JWT token string if authentication succeeds.
+	// Returns a JWT token string and user info if authentication succeeds.
 	// Returns an error if credentials are invalid or user is inactive.
-	AuthenticateUser(ctx context.Context, req *requests.LoginUserRequest) (string, error)
+	AuthenticateUser(ctx context.Context, req *requests.LoginUserRequest) (string, *user.User, error)
 }

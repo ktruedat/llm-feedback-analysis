@@ -83,7 +83,7 @@ func (h *Handlers) LoginUser(resp http.ResponseWriter, r *http.Request) {
 	}
 
 	logger.Info("authenticating user", "email", req.Email)
-	token, err := h.userService.AuthenticateUser(ctx, &req)
+	token, authenticatedUser, err := h.userService.AuthenticateUser(ctx, &req)
 	if err != nil {
 		logger.RecordSpanError(ctx, err)
 		logger.Error("error authenticating user", err, "email", req.Email)
@@ -101,6 +101,7 @@ func (h *Handlers) LoginUser(resp http.ResponseWriter, r *http.Request) {
 	response := responses.LoginUserResponse{
 		Token:     token,
 		ExpiresIn: expiresInSeconds,
+		User:      responses.UserInfoFromDomain(authenticatedUser),
 	}
 
 	h.responder.RespondContent(resp, responder.NewGenericResponse(http.StatusOK, response))

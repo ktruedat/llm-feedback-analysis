@@ -28,8 +28,9 @@ func RegisterUserResponseFromDomain(u *user.User) *RegisterUserResponse {
 //
 //	@Description	Response payload containing authentication token and user details.
 type LoginUserResponse struct {
-	Token     string `json:"token" example:"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."` // JWT authentication token
-	ExpiresIn int    `json:"expires_in" example:"3600"`                               // Token expiration time in seconds
+	Token     string   `json:"token" example:"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."` // JWT authentication token
+	ExpiresIn int      `json:"expires_in" example:"3600"`                               // Token expiration time in seconds
+	User      UserInfo `json:"user"`                                                    // User information including roles
 }
 
 // UserInfo represents basic user information in authentication responses
