@@ -103,6 +103,23 @@ services:
       - feedback-network
     restart: unless-stopped
 
+  # Frontend Application
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: feedback-frontend
+    environment:
+      - NEXT_PUBLIC_API_URL=http://backend:8080/api
+    ports:
+      - "3001:3001"
+    depends_on:
+      backend:
+        condition: service_started
+    networks:
+      - feedback-network
+    restart: unless-stopped
+
 networks:
   feedback-network:
     driver: bridge
