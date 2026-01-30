@@ -12,12 +12,12 @@ import (
 //
 //	@Description	Response payload containing feedback details.
 type FeedbackResponse struct {
-	ID        string                       `json:"id" example:"550e8400-e29b-41d4-a716-446655440000"`   // Feedback unique identifier
-	Rating    int                          `json:"rating" example:"5"`                                  // Rating value from 1 to 5
-	Comment   string                       `json:"comment" example:"Great service!"`                    // Feedback comment text
-	CreatedAt time.Time                    `json:"created_at" example:"2024-01-01T00:00:00Z"`           // Creation timestamp
-	UpdatedAt time.Time                    `json:"updated_at" example:"2024-01-01T00:00:00Z"`           // Last update timestamp
-	DeletedAt optional.Optional[time.Time] `json:"deleted_at,omitempty" example:"2024-01-01T00:00:00Z"` // Deletion timestamp (if deleted)
+	ID        string                       `json:"id" example:"550e8400-e29b-41d4-a716-446655440000"`                                  // Feedback unique identifier
+	Rating    int                          `json:"rating" example:"5"`                                                                 // Rating value from 1 to 5
+	Comment   string                       `json:"comment" example:"Great service!"`                                                   // Feedback comment text
+	CreatedAt time.Time                    `json:"created_at" example:"2024-01-01T00:00:00Z"`                                          // Creation timestamp
+	UpdatedAt time.Time                    `json:"updated_at" example:"2024-01-01T00:00:00Z"`                                          // Last update timestamp
+	DeletedAt optional.Optional[time.Time] `json:"deleted_at,omitempty" swaggertype:"primitive,string" example:"2024-01-01T00:00:00Z"` // Deletion timestamp (if deleted)
 }
 
 // FeedbackResponseFromDomain converts a domain Feedback entity to a FeedbackResponse.
