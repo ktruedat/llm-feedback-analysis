@@ -1,0 +1,113 @@
+services:
+  postgres:
+    image: postgres:18
+    container_name: feedback-postgres
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: feedback_db
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    networks:
+      - feedback-network
+
+  # OpenTelemetry Collector
+  otel-collector:
+    image: otel/opentelemetry-collector-contrib:latest
+    container_name: feedback-otel-collector
+    command: ["--config=/etc/otel-collector-config.yaml"]
+    volumes:
+      - ./backend/otel-collector-config.yaml:/etc/otel-collector-config.yaml
+    ports:
+      - "4317:4317"   # OTLP gRPC receiver
+      - "4318:4318"   # OTLP HTTP receiver
+      - "8888:8888"   # Prometheus metrics
+    depends_on:
+      tempo:
+        condition: service_started
+    networks:
+      - feedback-network
+
+  # Grafana Tempo (Distributed Tracing Backend)
+  tempo:
+    image: grafana/tempo:latest
+    container_name: feedback-tempo
+    command: ["-config.file=/etc/tempo-config.yaml"]
+    volumes:
+      - ./backend/tempo-config.yaml:/etc/tempo-config.yaml
+      - tempo_data:/var/tempo
+    ports:
+      - "3200:3200"   # Tempo HTTP (for queries)
+    expose:
+      - "4317"   # OTLP gRPC (internal, used by OTel Collector)
+      - "4318"   # OTLP HTTP (internal, used by OTel Collector)
+    networks:
+      - feedback-network
+
+  # Grafana (Observability UI)
+  grafana:
+    image: grafana/grafana:latest
+    container_name: feedback-grafana
+    environment:
+      - GF_AUTH_ANONYMOUS_ENABLED=true
+      - GF_AUTH_ANONYMOUS_ORG_ROLE=Admin
+      - GF_AUTH_DISABLE_LOGIN_FORM=true
+      - GF_SERVER_ROOT_URL=http://localhost:3000
+    ports:
+      - "3000:3000"
+    volumes:
+      - grafana_data:/var/lib/grafana
+      - ./backend/grafana/provisioning:/etc/grafana/provisioning
+    healthcheck:
+      test: ["CMD", "wget", "--spider", "-q", "http://localhost:3000/api/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+    depends_on:
+      tempo:
+        condition: service_started
+    networks:
+      - feedback-network
+
+  # Backend Application
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: feedback-backend
+    env_file:
+      - ./backend/.env
+    ports:
+      - "8080:8080"
+    volumes:
+      - ./backend/config.yaml:/app/config.yaml:ro
+    command: ["-cfg", "/app/config.yaml"]
+    depends_on:
+      postgres:
+        condition: service_healthy
+      otel-collector:
+        condition: service_started
+      tempo:
+        condition: service_started
+      grafana:
+        condition: service_healthy
+    networks:
+      - feedback-network
+    restart: unless-stopped
+
+networks:
+  feedback-network:
+    driver: bridge
+
+volumes:
+  postgres_data:
+  tempo_data:
+  grafana_data:
