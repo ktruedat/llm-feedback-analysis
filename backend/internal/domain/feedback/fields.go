@@ -12,6 +12,11 @@ func (f *Feedback) ID() uuid.UUID {
 	return f.id
 }
 
+// UserID returns the user ID who submitted the feedback.
+func (f *Feedback) UserID() uuid.UUID {
+	return f.userID
+}
+
 // Rating returns the feedback rating.
 func (f *Feedback) Rating() Rating {
 	return f.rating

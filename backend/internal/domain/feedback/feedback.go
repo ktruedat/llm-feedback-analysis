@@ -15,11 +15,13 @@ import (
 // - Comment is required and must be between 1 and 1000 characters
 // - Cannot be edited once created (immutable after creation)
 // - Can be soft-deleted
+// - Must belong to a user (userID is required)
 //
 // Relationships:
-// - Standalone entity (no parent/child relationships).
+// - Belongs to User (many-to-one relationship).
 type Feedback struct {
 	id        uuid.UUID
+	userID    uuid.UUID // User who submitted the feedback
 	rating    Rating
 	comment   Comment
 	createdAt time.Time
@@ -31,6 +33,10 @@ type Feedback struct {
 func (f *Feedback) IsValid() error {
 	if f.id == uuid.Nil {
 		return fmt.Errorf("feedback ID is required")
+	}
+
+	if f.userID == uuid.Nil {
+		return fmt.Errorf("user ID is required")
 	}
 
 	if !f.rating.IsValid() {

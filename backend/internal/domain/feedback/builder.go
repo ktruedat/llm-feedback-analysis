@@ -51,6 +51,16 @@ func (b *Builder) WithID(id uuid.UUID) *Builder {
 	return b
 }
 
+// WithUserID sets the user ID who submitted the feedback.
+func (b *Builder) WithUserID(userID uuid.UUID) *Builder {
+	if userID == uuid.Nil {
+		b.validationErrors = append(b.validationErrors, fmt.Errorf("user ID cannot be nil"))
+		return b
+	}
+	b.entity.userID = userID
+	return b
+}
+
 // WithRating sets the feedback rating with validation.
 func (b *Builder) WithRating(rating Rating) *Builder {
 	if !rating.IsValid() {
@@ -132,6 +142,10 @@ func (b *Builder) Build() (*Feedback, error) {
 		return nil, fmt.Errorf("feedback ID is required")
 	}
 
+	if b.entity.userID == uuid.Nil {
+		return nil, fmt.Errorf("user ID is required")
+	}
+
 	if !b.entity.rating.IsValid() {
 		return nil, fmt.Errorf("rating is required and must be between 1 and 5")
 	}
@@ -164,8 +178,9 @@ func (b *Builder) BuildUnchecked() *Feedback {
 
 // BuildNew creates a new feedback entity with required fields only.
 // This is a convenience method for common creation scenarios.
-func (b *Builder) BuildNew(ratingValue int, commentText string) (*Feedback, error) {
+func (b *Builder) BuildNew(userID uuid.UUID, ratingValue int, commentText string) (*Feedback, error) {
 	return b.
+		WithUserID(userID).
 		WithRatingValue(ratingValue).
 		WithCommentText(commentText).
 		Build()
