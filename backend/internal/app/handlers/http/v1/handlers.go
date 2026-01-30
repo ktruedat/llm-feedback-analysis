@@ -48,8 +48,14 @@ func NewHandlers(
 }
 
 func (h *Handlers) RegisterRoutes() {
-	h.registerFeedbackRoutes(h.r)
-	h.registerAuthRoutes(h.r)
+	// Register routes hierarchically under /api
+	h.r.Route("/api", func(r chi.Router) {
+		// Register auth routes (public, no JWT required)
+		h.registerAuthRoutes(r)
+
+		// Register feedback routes (protected, JWT required)
+		h.registerFeedbackRoutes(r)
+	})
 }
 
 // SetTracing implements trace.Instrumented interface.
