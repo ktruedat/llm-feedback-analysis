@@ -14,6 +14,7 @@ type Config struct {
 	Pagination Pagination `yaml:"pagination" env:"PAGINATION"`
 	DB         Database   `yaml:"database" env:"DATABASE"`
 	Tracing    Tracing    `yaml:"tracing" env:"TRACING"`
+	JWT        JWT        `yaml:"jwt" env:"JWT"`
 }
 
 func New(path string) (*Config, error) {
@@ -55,6 +56,7 @@ func (c *Config) Validate() error {
 		c.DB,
 		c.Tracing,
 		c.Profile,
+		c.JWT,
 	}
 
 	for _, v := range components {

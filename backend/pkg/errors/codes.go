@@ -10,10 +10,12 @@ import (
 type ErrorCategory string
 
 const (
-	CategoryValidation ErrorCategory = "ValidationError"
-	CategoryNotFound   ErrorCategory = "NotFoundError"
-	CategoryConflict   ErrorCategory = "ConflictError"
-	CategoryInternal   ErrorCategory = "InternalError"
+	CategoryValidation   ErrorCategory = "ValidationError"
+	CategoryNotFound     ErrorCategory = "NotFoundError"
+	CategoryConflict     ErrorCategory = "ConflictError"
+	CategoryInternal     ErrorCategory = "InternalError"
+	CategoryUnauthorized ErrorCategory = "UnauthorizedError"
+	CategoryForbidden    ErrorCategory = "ForbiddenError"
 )
 
 func (c ErrorCategory) HTTPCode() int {
@@ -24,6 +26,10 @@ func (c ErrorCategory) HTTPCode() int {
 		return 404 // Not Found
 	case CategoryConflict:
 		return 409 // Conflict
+	case CategoryUnauthorized:
+		return 401 // Unauthorized - Authentication failed
+	case CategoryForbidden:
+		return 403 // Forbidden - Authorization failed (authenticated but lacks permission)
 	case CategoryInternal:
 		return 500 // Internal Server Error
 	default:
@@ -70,5 +76,13 @@ var (
 	ErrorCodeNotImplemented = &ErrorCode{
 		Code:     "not_implemented",
 		Category: CategoryInternal,
+	}
+	ErrorCodeUnauthorized = &ErrorCode{
+		Code:     "unauthorized",
+		Category: CategoryUnauthorized,
+	}
+	ErrorCodeForbidden = &ErrorCode{
+		Code:     "forbidden",
+		Category: CategoryForbidden,
 	}
 )

@@ -120,3 +120,44 @@ func (t Tracing) Validate() error {
 
 	return nil
 }
+
+type JWT struct {
+	// Secret is the secret key used to sign and verify JWT tokens.
+	// This should be a strong, randomly generated secret (minimum 32 characters recommended).
+	// Required.
+	Secret string `yaml:"secret" env:"SECRET"`
+	// Algorithm is the signing algorithm to use. Supported: HS256, HS384, HS512.
+	// Defaults to HS256 if not specified.
+	Algorithm string `yaml:"algorithm" env:"ALGORITHM"`
+	// ExpirationHours is the number of hours until the JWT token expires.
+	// Defaults to 24 hours if not specified.
+	ExpirationHours int `yaml:"expiration_hours" env:"EXPIRATION_HOURS"`
+}
+
+func (j JWT) Validate() error {
+	if strings.TrimSpace(j.Secret) == "" {
+		return fmt.Errorf("jwt secret cannot be empty")
+	}
+
+	if len(j.Secret) < 32 {
+		return fmt.Errorf("jwt secret must be at least 32 characters long for security")
+	}
+
+	// Validate algorithm if provided
+	if j.Algorithm != "" {
+		validAlgorithms := map[string]bool{
+			"HS256": true,
+			"HS384": true,
+			"HS512": true,
+		}
+		if !validAlgorithms[j.Algorithm] {
+			return fmt.Errorf("invalid jwt algorithm: %s (supported: HS256, HS384, HS512)", j.Algorithm)
+		}
+	}
+
+	// Set default expiration if not specified (24 hours)
+	// Note: We can't modify the receiver, so validation happens at usage time
+	// The default is handled in NewClaims function
+
+	return nil
+}

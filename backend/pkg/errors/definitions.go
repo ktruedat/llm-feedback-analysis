@@ -41,3 +41,29 @@ func ErrNotImplemented(msg string) ApplicationError {
 		UserFacing: true,
 	}
 }
+
+func ErrUnauthorized(msg string, opts ...ErrorOpt) ApplicationError {
+	ge := &GenericError{
+		Code:       ErrorCodeUnauthorized,
+		Message:    "Unauthorized: " + msg,
+		UserFacing: true,
+	}
+	for _, opt := range opts {
+		opt(ge)
+	}
+
+	return ge
+}
+
+func ErrForbidden(msg string, opts ...ErrorOpt) ApplicationError {
+	ge := &GenericError{
+		Code:       ErrorCodeForbidden,
+		Message:    "Forbidden: " + msg,
+		UserFacing: true,
+	}
+	for _, opt := range opts {
+		opt(ge)
+	}
+
+	return ge
+}
