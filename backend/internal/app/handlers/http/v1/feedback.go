@@ -6,6 +6,7 @@ import (
 
 	"github.com/go-chi/chi/v5"
 	"github.com/google/uuid"
+	"github.com/ktruedat/llm-feedback-analysis/internal/app/handlers/http/middleware"
 	"github.com/ktruedat/llm-feedback-analysis/internal/app/transport/requests"
 	"github.com/ktruedat/llm-feedback-analysis/internal/app/transport/responses"
 	ce "github.com/ktruedat/llm-feedback-analysis/pkg/errors"
@@ -19,8 +20,9 @@ func (h *Handlers) registerFeedbackRoutes(router chi.Router) {
 			r.Post("/", trace.InstrumentHandlerFunc(h.CreateFeedback, "POST /feedbacks", h))
 			r.Get("/{id}", trace.InstrumentHandlerFunc(h.GetFeedbackByID, "GET /feedbacks/{id}", h))
 			r.Get("/", trace.InstrumentHandlerFunc(h.ListFeedbacks, "GET /feedbacks", h))
-			// TODO: only admin users should be able to delete feedbacks
-			r.Delete("/{id}", trace.InstrumentHandlerFunc(h.DeleteFeedback, "DELETE /feedbacks/{id}", h))
+			// Admin-only route: only users with "admin" role can delete feedbacks
+			r.With(middleware.RequireRole("admin", h.logger, h.responder)).
+				Delete("/{id}", trace.InstrumentHandlerFunc(h.DeleteFeedback, "DELETE /feedbacks/{id}", h))
 		},
 	)
 }
@@ -32,6 +34,7 @@ func (h *Handlers) registerFeedbackRoutes(router chi.Router) {
 //	@Tags			feedbacks
 //	@Accept			json
 //	@Produce		json
+//	@Security		BearerAuth
 //	@Param			request	body		requests.CreateFeedbackRequest	true	"Feedback creation request"
 //	@example		minimal	file://examples/feedback/create_minimal.json
 //	@example		full	file://examples/feedback/create_full.json
@@ -41,6 +44,7 @@ func (h *Handlers) registerFeedbackRoutes(router chi.Router) {
 //	@example		comment_too_long	file://examples/feedback/create_comment_too_long.json
 //	@Success		201		{object}	responses.FeedbackResponse		"Feedback created successfully"
 //	@Failure		400		{object}	map[string]interface{}			"Bad request - invalid request body"
+//	@Failure		401		{object}	map[string]interface{}			"Unauthorized - invalid or missing JWT token"
 //	@Failure		500		{object}	map[string]interface{}			"Internal server error"
 //	@Router			/feedbacks [post]
 func (h *Handlers) CreateFeedback(resp http.ResponseWriter, r *http.Request) {
@@ -74,9 +78,11 @@ func (h *Handlers) CreateFeedback(resp http.ResponseWriter, r *http.Request) {
 //	@Tags			feedbacks
 //	@Accept			json
 //	@Produce		json
+//	@Security		BearerAuth
 //	@Param			id	path		string	true	"Feedback ID"	example(550e8400-e29b-41d4-a716-446655440000)
 //	@Success		200	{object}	responses.FeedbackResponse	"Feedback retrieved successfully"
 //	@Failure		400	{object}	map[string]interface{}		"Bad request - invalid feedback ID format"
+//	@Failure		401	{object}	map[string]interface{}		"Unauthorized - invalid or missing JWT token"
 //	@Failure		404	{object}	map[string]interface{}		"Feedback not found"
 //	@Failure		500	{object}	map[string]interface{}		"Internal server error"
 //	@Router			/feedbacks/{id} [get]
@@ -111,10 +117,12 @@ func (h *Handlers) GetFeedbackByID(resp http.ResponseWriter, r *http.Request) {
 //	@Tags			feedbacks
 //	@Accept			json
 //	@Produce		json
+//	@Security		BearerAuth
 //	@Param			limit	query		int		false	"Maximum number of feedbacks to return (default: 100)"	example(10)
 //	@Param			offset	query		int		false	"Number of feedbacks to skip (default: 0)"	example(0)
 //	@Success		200		{object}	responses.FeedbackListResponse	"Feedbacks retrieved successfully"
 //	@Failure		400		{object}	map[string]interface{}			"Bad request - invalid query parameters"
+//	@Failure		401		{object}	map[string]interface{}			"Unauthorized - invalid or missing JWT token"
 //	@Failure		500		{object}	map[string]interface{}			"Internal server error"
 //	@Router			/feedbacks [get]
 func (h *Handlers) ListFeedbacks(resp http.ResponseWriter, r *http.Request) {
@@ -159,14 +167,17 @@ func (h *Handlers) ListFeedbacks(resp http.ResponseWriter, r *http.Request) {
 
 // DeleteFeedback performs a soft delete on a feedback entry
 //
-//	@Summary		Delete feedback
-//	@Description	Soft delete a feedback entry by its unique identifier
+//	@Summary		Delete feedback (Admin only)
+//	@Description	Soft delete a feedback entry by its unique identifier. Requires admin role.
 //	@Tags			feedbacks
 //	@Accept			json
 //	@Produce		json
+//	@Security		BearerAuth
 //	@Param			id	path		string	true	"Feedback ID"	example(550e8400-e29b-41d4-a716-446655440000)
 //	@Success		204	{object}	nil		"Feedback deleted successfully"
 //	@Failure		400	{object}	map[string]interface{}	"Bad request - invalid feedback ID format"
+//	@Failure		401	{object}	map[string]interface{}	"Unauthorized - invalid or missing JWT token"
+//	@Failure		403	{object}	map[string]interface{}	"Forbidden - admin role required"
 //	@Failure		404	{object}	map[string]interface{}	"Feedback not found"
 //	@Failure		500	{object}	map[string]interface{}	"Internal server error"
 //	@Router			/feedbacks/{id} [delete]
