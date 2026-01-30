@@ -6,6 +6,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/ktruedat/llm-feedback-analysis/internal/app/transport/requests"
 	"github.com/ktruedat/llm-feedback-analysis/internal/domain/feedback"
+	"github.com/ktruedat/llm-feedback-analysis/internal/domain/user"
 )
 
 // FeedbackService defines the interface for feedback business logic operations.
@@ -21,4 +22,16 @@ type FeedbackService interface {
 
 	// DeleteFeedback performs a soft delete on a feedback entry by its ID.
 	DeleteFeedback(ctx context.Context, feedbackID uuid.UUID) error
+}
+
+// UserService defines the interface for user authentication and management operations.
+type UserService interface {
+	// RegisterUser creates a new user account and returns the created user.
+	// Returns an error if the email already exists or validation fails.
+	RegisterUser(ctx context.Context, req *requests.RegisterUserRequest) (*user.User, error)
+
+	// AuthenticateUser authenticates a user with email and password.
+	// Returns a JWT token string if authentication succeeds.
+	// Returns an error if credentials are invalid or user is inactive.
+	AuthenticateUser(ctx context.Context, req *requests.LoginUserRequest) (string, error)
 }
