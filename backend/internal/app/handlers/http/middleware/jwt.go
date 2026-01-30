@@ -21,6 +21,7 @@ const (
 
 // JWTMiddleware creates a middleware that validates JWT bearer tokens
 // according to RFC 6750 (OAuth 2.0 Bearer Token Usage)
+// It skips authentication for public routes like /auth/register and /auth/login
 func JWTMiddleware(
 	cfg *config.JWT,
 	logger tracelog.TraceLogger,
@@ -29,6 +30,14 @@ func JWTMiddleware(
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(
 			func(w http.ResponseWriter, r *http.Request) {
+				// Skip JWT validation for auth endpoints
+				path := r.URL.Path
+				if path == "/auth/register" || path == "/auth/login" ||
+					path == "/api/auth/register" || path == "/api/auth/login" {
+					next.ServeHTTP(w, r)
+					return
+				}
+
 				ctx := r.Context()
 				logger := logger.WithSpan(ctx)
 
