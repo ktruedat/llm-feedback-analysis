@@ -108,6 +108,7 @@ func initTracing(cfg *config.Config) (*tracing, error) {
 func initRouter(cfg *config.Config, logger tracelog.TraceLogger, responder responder.RestResponder) *chi.Mux {
 	router := chi.NewRouter()
 	router.Use(
+		middleware.LoggerMiddleware(logger),
 		cors.Handler(middleware.CorsOptions()),
 		middleware.JWTMiddleware(&cfg.JWT, logger, responder),
 	)
