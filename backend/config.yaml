@@ -1,0 +1,33 @@
+profile: dev
+
+server:
+  host: 0.0.0.0
+  port: 8080
+  graceful_shutdown_seconds: 30
+
+pagination:
+  limit: 100
+  offset: 0
+
+database:
+  dsn: postgres://postgres:postgres@postgres:5432/feedback_db?sslmode=disable
+
+tracing:
+  enabled: true
+  otel_endpoint: http://otel-collector:4318
+  tempo_endpoint: http://tempo:3200
+  service_name: llm-feedback-analysis
+  service_version: 1.0.0
+  insecure: true
+
+jwt:
+  # The secret key is for signing and verifying JWT tokens
+  # MUST be at least 32 characters long
+  # Use a strong, randomly generated secret (with `openssl rand -base64 64`)
+  # It is set via JWT_SECRET environment variable.
+
+  # Signing algorithm: HS256, HS384, or HS512 (default: HS256)
+  algorithm: "HS256"
+  # Token expiration time in hours (default: 24 hours)
+  # Can be overridden via JWT_EXPIRATION_HOURS environment variable
+  expiration_hours: 24
