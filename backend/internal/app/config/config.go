@@ -9,12 +9,12 @@ import (
 )
 
 type Config struct {
-	Profile    Profile    `yaml:"profile" env:"PROFILE"`
-	Server     Server     `yaml:"server" env:"SERVER"`
-	Pagination Pagination `yaml:"pagination" env:"PAGINATION"`
-	DB         Database   `yaml:"database" env:"DATABASE"`
-	Tracing    Tracing    `yaml:"tracing" env:"TRACING"`
-	JWT        JWT        `yaml:"jwt" env:"JWT"`
+	Profile    Profile    `yaml:"profile" envPrefix:"PROFILE_"`
+	Server     Server     `yaml:"server" envPrefix:"SERVER_"`
+	Pagination Pagination `yaml:"pagination" envPrefix:"PAGINATION_"`
+	DB         Database   `yaml:"database" envPrefix:"DATABASE_"`
+	Tracing    Tracing    `yaml:"tracing" envPrefix:"TRACING_"`
+	JWT        JWT        `yaml:"jwt" envPrefix:"JWT_"`
 }
 
 func New(path string) (*Config, error) {
