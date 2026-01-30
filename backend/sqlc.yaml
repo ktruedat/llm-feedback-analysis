@@ -59,6 +59,18 @@ sql:
         rename:
           feedback_feedback: Feedback
 
+  # User queries
+  - engine: "postgresql"
+    schema: "migrations"
+    queries: "internal/app/repository/postgres/user/queries/*.sql"
+    gen:
+      go:
+        <<: *go_gen_common
+        package: "sqlc"
+        out: "internal/app/repository/postgres/user/sqlc"
+        rename:
+          feedback_user: User
+
   # Analysis queries
 #  - engine: "postgresql"
 #    schema: "migrations"
