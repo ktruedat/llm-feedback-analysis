@@ -72,11 +72,16 @@ sql:
           feedback_user: User
 
   # Analysis queries
-#  - engine: "postgresql"
-#    schema: "migrations"
-#    queries: "internal/app/repository/postgres/analysis/queries/*.sql"
-#    gen:
-#      go:
-#        <<: *go_gen_common
-#        package: "sqlc"
-#        out: "internal/app/repository/postgres/analysis/sqlc"
+  - engine: "postgresql"
+    schema: "migrations"
+    queries: "internal/app/repository/postgres/analysis/queries/*.sql"
+    gen:
+      go:
+        <<: *go_gen_common
+        package: "sqlc"
+        out: "internal/app/repository/postgres/analysis/sqlc"
+        rename:
+          feedback_analysis: Analysis
+          feedback_analysis_topic: Topic
+          feedback_feedback_topic_assignment: FeedbackTopicAssignment
+          feedback_analyzed_feedback: AnalyzedFeedback
