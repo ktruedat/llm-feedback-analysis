@@ -560,6 +560,114 @@ const docTemplate = `{
                     }
                 ]
             }
+        },
+        "/topics": {
+            "get": {
+                "description": "Retrieve all predefined topics with feedback count and average rating from the latest analysis",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "topics"
+                ],
+                "summary": "Get topics with statistics",
+                "responses": {
+                    "200": {
+                        "description": "Topics with stats retrieved successfully",
+                        "schema": {
+                            "$ref": "#/definitions/responses.TopicStatsListResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized - invalid or missing JWT token",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "500": {
+                        "description": "Internal server error",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    }
+                },
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/topics/{topic_enum}": {
+            "get": {
+                "description": "Retrieve detailed information about a specific topic enum with all associated feedbacks",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "topics"
+                ],
+                "summary": "Get topic details",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "example": "product_functionality_features",
+                        "description": "Topic enum value",
+                        "name": "topic_enum",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Topic details retrieved successfully",
+                        "schema": {
+                            "$ref": "#/definitions/responses.TopicDetailsResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad request - invalid topic enum",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized - invalid or missing JWT token",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "404": {
+                        "description": "Topic not found in latest analysis",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "500": {
+                        "description": "Internal server error",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    }
+                },
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ]
+            }
         }
     },
     "definitions": {
@@ -789,7 +897,7 @@ const docTemplate = `{
             "properties": {
                 "comment": {
                     "type": "string",
-                    "example": "Great service!"
+                    "example": "Great product!"
                 },
                 "created_at": {
                     "type": "string",
@@ -891,6 +999,82 @@ const docTemplate = `{
                 "updated_at": {
                     "type": "string",
                     "example": "2024-01-01T00:00:00Z"
+                }
+            }
+        },
+        "responses.TopicDetailsResponse": {
+            "description": "Response payload containing detailed topic information with feedbacks.",
+            "type": "object",
+            "properties": {
+                "average_rating": {
+                    "type": "number",
+                    "example": 4.5
+                },
+                "feedback_count": {
+                    "type": "integer",
+                    "example": 10
+                },
+                "feedbacks": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/responses.FeedbackResponse"
+                    }
+                },
+                "sentiment": {
+                    "type": "string",
+                    "example": "positive"
+                },
+                "summary": {
+                    "type": "string"
+                },
+                "topic": {
+                    "type": "string",
+                    "example": "product_functionality_features"
+                },
+                "topic_description": {
+                    "type": "string"
+                },
+                "topic_name": {
+                    "type": "string",
+                    "example": "Product Functionality \u0026 Features"
+                }
+            }
+        },
+        "responses.TopicStatsListResponse": {
+            "description": "Response payload containing a list of topic statistics.",
+            "type": "object",
+            "properties": {
+                "topics": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/responses.TopicStatsResponse"
+                    }
+                },
+                "total": {
+                    "type": "integer",
+                    "example": 13
+                }
+            }
+        },
+        "responses.TopicStatsResponse": {
+            "description": "Response payload containing topic statistics from the latest analysis.",
+            "type": "object",
+            "properties": {
+                "average_rating": {
+                    "type": "number",
+                    "example": 4.5
+                },
+                "feedback_count": {
+                    "type": "integer",
+                    "example": 10
+                },
+                "topic": {
+                    "type": "string",
+                    "example": "product_functionality_features"
+                },
+                "topic_name": {
+                    "type": "string",
+                    "example": "Product Functionality \u0026 Features"
                 }
             }
         },

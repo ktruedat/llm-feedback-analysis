@@ -874,6 +874,11 @@ This updates:
 - `GET /api/v1/analyses/latest` - Get most recent analysis
 - `GET /api/v1/analyses/:id` - Get specific analysis
 
+**Topics** (admin only):
+
+- `GET /api/v1/topics` - Get all predefined topics with statistics (feedback count, average rating)
+- `GET /api/v1/topics/:topic_enum` - Get detailed topic information with all associated feedbacks
+
 ---
 
 ## Project Structure Overview

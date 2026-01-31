@@ -90,3 +90,26 @@ export interface AnalysisListResponse {
   analyses: Analysis[];
   total: number;
 }
+
+export interface TopicStats {
+  topic: string;
+  topic_name: string;
+  feedback_count: number;
+  average_rating: number;
+}
+
+export interface TopicStatsListResponse {
+  topics: TopicStats[];
+  total: number;
+}
+
+export interface TopicDetails {
+  topic: string;
+  topic_name: string;
+  topic_description: string;
+  summary: string;
+  feedback_count: number;
+  average_rating: number;
+  sentiment: 'positive' | 'mixed' | 'negative';
+  feedbacks: Feedback[];
+}

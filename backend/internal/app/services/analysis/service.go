@@ -8,6 +8,7 @@ import (
 	apprepo "github.com/ktruedat/llm-feedback-analysis/internal/app/repository"
 	"github.com/ktruedat/llm-feedback-analysis/internal/app/services"
 	"github.com/ktruedat/llm-feedback-analysis/internal/domain/analysis"
+	"github.com/ktruedat/llm-feedback-analysis/internal/domain/feedback"
 	"github.com/ktruedat/llm-feedback-analysis/pkg/tracelog"
 )
 
@@ -132,4 +133,168 @@ func (s *service) GetAnalysisByID(ctx context.Context, analysisID uuid.UUID) (
 		len(feedbackIDs),
 	)
 	return analysisEntity, topics, feedbackTopics, nil
+}
+
+// GetTopicsWithStats retrieves all predefined topics with their statistics from the latest analysis.
+func (s *service) GetTopicsWithStats(ctx context.Context) ([]services.TopicStats, error) {
+	logger := s.logger.WithSpan(ctx)
+	logger.Info("getting topics with stats")
+
+	// Get latest analysis
+	latestAnalysis, err := s.analysisRepo.GetLatest(ctx)
+	if err != nil {
+		logger.RecordSpanError(ctx, err)
+		logger.Error("error getting latest analysis", err)
+		return nil, fmt.Errorf("failed to get latest analysis: %w", err)
+	}
+
+	if latestAnalysis == nil {
+		logger.Info("no analysis found, returning empty topics")
+		// Return all predefined topics with zero stats
+		allTopics := analysis.AllTopics()
+		stats := make([]services.TopicStats, len(allTopics))
+		for i, topic := range allTopics {
+			stats[i] = services.TopicStats{
+				Topic:         topic,
+				FeedbackCount: 0,
+				AverageRating: 0,
+			}
+		}
+		return stats, nil
+	}
+
+	// Get topics from latest analysis
+	topics, err := s.analysisRepo.GetTopicsByAnalysisID(ctx, latestAnalysis.ID())
+	if err != nil {
+		logger.RecordSpanError(ctx, err)
+		logger.Error("error getting topics", err, "analysis_id", latestAnalysis.ID())
+		return nil, fmt.Errorf("failed to get topics: %w", err)
+	}
+
+	// Build map of topic enum -> topic analysis
+	topicMap := make(map[analysis.Topic]*analysis.TopicAnalysis)
+	for _, topic := range topics {
+		topicMap[topic.Topic()] = topic
+	}
+
+	// Build stats for all predefined topics
+	allTopics := analysis.AllTopics()
+	stats := make([]services.TopicStats, len(allTopics))
+	for i, topicEnum := range allTopics {
+		stats[i] = services.TopicStats{
+			Topic:         topicEnum,
+			FeedbackCount: 0,
+			AverageRating: 0,
+		}
+
+		// If this topic exists in the latest analysis, get its stats
+		if topicAnalysis, exists := topicMap[topicEnum]; exists {
+			stats[i].FeedbackCount = topicAnalysis.FeedbackCount()
+
+			// Get feedback IDs for this topic and calculate average rating
+			feedbackIDs, err := s.analysisRepo.GetFeedbackIDsByTopicID(ctx, topicAnalysis.ID())
+			if err != nil {
+				logger.Warning("error getting feedback IDs for topic", "topic_id", topicAnalysis.ID().String(), "error", err.Error())
+				continue
+			}
+
+			if len(feedbackIDs) > 0 {
+				// Get feedbacks and calculate average rating
+				totalRating := 0
+				validFeedbacks := 0
+				for _, fbID := range feedbackIDs {
+					fb, err := s.feedbackRepo.Get(ctx, fbID)
+					if err != nil {
+						logger.Warning("error getting feedback", "feedback_id", fbID.String(), "error", err.Error())
+						continue
+					}
+					totalRating += fb.Rating().Value()
+					validFeedbacks++
+				}
+				if validFeedbacks > 0 {
+					stats[i].AverageRating = float64(totalRating) / float64(validFeedbacks)
+				}
+			}
+		}
+	}
+
+	logger.Info("topics with stats retrieved", "topics_count", len(stats))
+	return stats, nil
+}
+
+// GetTopicDetails retrieves details for a specific topic enum with all associated feedbacks.
+func (s *service) GetTopicDetails(ctx context.Context, topicEnum analysis.Topic) (*services.TopicDetails, error) {
+	logger := s.logger.WithSpan(ctx)
+	logger.Info("getting topic details", "topic_enum", string(topicEnum))
+
+	// Get latest analysis
+	latestAnalysis, err := s.analysisRepo.GetLatest(ctx)
+	if err != nil {
+		logger.RecordSpanError(ctx, err)
+		logger.Error("error getting latest analysis", err)
+		return nil, fmt.Errorf("failed to get latest analysis: %w", err)
+	}
+
+	if latestAnalysis == nil {
+		return nil, fmt.Errorf("no analysis found")
+	}
+
+	// Get topics from latest analysis
+	topics, err := s.analysisRepo.GetTopicsByAnalysisID(ctx, latestAnalysis.ID())
+	if err != nil {
+		logger.RecordSpanError(ctx, err)
+		logger.Error("error getting topics", err, "analysis_id", latestAnalysis.ID())
+		return nil, fmt.Errorf("failed to get topics: %w", err)
+	}
+
+	// Find the topic analysis for this topic enum
+	var topicAnalysis *analysis.TopicAnalysis
+	for _, topic := range topics {
+		if topic.Topic() == topicEnum {
+			topicAnalysis = topic
+			break
+		}
+	}
+
+	if topicAnalysis == nil {
+		return nil, fmt.Errorf("topic %s not found in latest analysis", string(topicEnum))
+	}
+
+	// Get feedback IDs for this topic
+	feedbackIDs, err := s.analysisRepo.GetFeedbackIDsByTopicID(ctx, topicAnalysis.ID())
+	if err != nil {
+		logger.RecordSpanError(ctx, err)
+		logger.Error("error getting feedback IDs", err, "topic_id", topicAnalysis.ID())
+		return nil, fmt.Errorf("failed to get feedback IDs: %w", err)
+	}
+
+	// Get all feedbacks
+	feedbacks := make([]*feedback.Feedback, 0, len(feedbackIDs))
+	totalRating := 0
+	for _, fbID := range feedbackIDs {
+		fb, err := s.feedbackRepo.Get(ctx, fbID)
+		if err != nil {
+			logger.Warning("error getting feedback", "feedback_id", fbID.String(), "error", err.Error())
+			continue
+		}
+		feedbacks = append(feedbacks, fb)
+		totalRating += fb.Rating().Value()
+	}
+
+	averageRating := 0.0
+	if len(feedbacks) > 0 {
+		averageRating = float64(totalRating) / float64(len(feedbacks))
+	}
+
+	details := &services.TopicDetails{
+		Topic:         topicEnum,
+		Summary:       topicAnalysis.Summary(),
+		FeedbackCount: len(feedbacks),
+		AverageRating: averageRating,
+		Sentiment:     topicAnalysis.Sentiment(),
+		Feedbacks:     feedbacks,
+	}
+
+	logger.Info("topic details retrieved", "topic_enum", string(topicEnum), "feedbacks_count", len(feedbacks))
+	return details, nil
 }

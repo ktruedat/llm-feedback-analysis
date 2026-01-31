@@ -6,6 +6,7 @@ import (
 	"github.com/go-chi/chi/v5"
 	"github.com/google/uuid"
 	"github.com/ktruedat/llm-feedback-analysis/internal/app/transport/responses"
+	"github.com/ktruedat/llm-feedback-analysis/internal/domain/analysis"
 	ce "github.com/ktruedat/llm-feedback-analysis/pkg/errors"
 	"github.com/ktruedat/llm-feedback-analysis/pkg/http/responder"
 	"github.com/ktruedat/llm-feedback-analysis/pkg/trace"
@@ -17,6 +18,12 @@ func (h *Handlers) registerAnalysisRoutes(router chi.Router) {
 			r.Get("/latest", trace.InstrumentHandlerFunc(h.GetLatestAnalysis, "GET /analyses/latest", h))
 			r.Get("/", trace.InstrumentHandlerFunc(h.ListAnalyses, "GET /analyses", h))
 			r.Get("/{id}", trace.InstrumentHandlerFunc(h.GetAnalysisByID, "GET /analyses/{id}", h))
+		},
+	)
+	router.Route(
+		"/topics", func(r chi.Router) {
+			r.Get("/", trace.InstrumentHandlerFunc(h.GetTopicsWithStats, "GET /topics", h))
+			r.Get("/{topic_enum}", trace.InstrumentHandlerFunc(h.GetTopicDetails, "GET /topics/{topic_enum}", h))
 		},
 	)
 }
@@ -166,6 +173,105 @@ func (h *Handlers) GetAnalysisByID(resp http.ResponseWriter, r *http.Request) {
 		Analysis:  responses.AnalysisResponseFromDomain(analysisEntity),
 		Topics:    topicResponses,
 		Feedbacks: feedbackResponses,
+	}
+
+	h.responder.RespondContent(resp, responder.NewGenericResponse(http.StatusOK, response))
+}
+
+// GetTopicsWithStats retrieves all predefined topics with their statistics from the latest analysis
+//
+//	@Summary		Get topics with statistics
+//	@Description	Retrieve all predefined topics with feedback count and average rating from the latest analysis
+//	@Tags			topics
+//	@Accept			json
+//	@Produce		json
+//	@Security		BearerAuth
+//	@Success		200	{object}	responses.TopicStatsListResponse	"Topics with stats retrieved successfully"
+//	@Failure		401	{object}	map[string]interface{}			"Unauthorized - invalid or missing JWT token"
+//	@Failure		500	{object}	map[string]interface{}			"Internal server error"
+//	@Router			/topics [get]
+func (h *Handlers) GetTopicsWithStats(resp http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+	logger := h.logger.WithSpan(ctx)
+
+	logger.Info("getting topics with stats")
+	stats, err := h.feedbackSummaryService.GetTopicsWithStats(ctx)
+	if err != nil {
+		logger.RecordSpanError(ctx, err)
+		logger.Error("error getting topics with stats", err)
+		h.handleSvcError(resp, err)
+		return
+	}
+
+	// Convert to response format
+	topicResponses := make([]responses.TopicStatsResponse, len(stats))
+	for i, stat := range stats {
+		topicResponses[i] = responses.TopicStatsResponse{
+			Topic:         string(stat.Topic),
+			TopicName:     stat.Topic.DisplayName(),
+			FeedbackCount: stat.FeedbackCount,
+			AverageRating: stat.AverageRating,
+		}
+	}
+
+	response := responses.TopicStatsListResponse{
+		Topics: topicResponses,
+		Total:  len(topicResponses),
+	}
+
+	h.responder.RespondContent(resp, responder.NewGenericResponse(http.StatusOK, response))
+}
+
+// GetTopicDetails retrieves detailed information about a specific topic with all associated feedbacks
+//
+//	@Summary		Get topic details
+//	@Description	Retrieve detailed information about a specific topic enum with all associated feedbacks
+//	@Tags			topics
+//	@Accept			json
+//	@Produce		json
+//	@Security		BearerAuth
+//	@Param			topic_enum	path		string	true	"Topic enum value"	example(product_functionality_features)
+//	@Success		200			{object}	responses.TopicDetailsResponse	"Topic details retrieved successfully"
+//	@Failure		400			{object}	map[string]interface{}			"Bad request - invalid topic enum"
+//	@Failure		401			{object}	map[string]interface{}			"Unauthorized - invalid or missing JWT token"
+//	@Failure		404			{object}	map[string]interface{}			"Topic not found in latest analysis"
+//	@Failure		500			{object}	map[string]interface{}			"Internal server error"
+//	@Router			/topics/{topic_enum} [get]
+func (h *Handlers) GetTopicDetails(resp http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+	logger := h.logger.WithSpan(ctx)
+
+	topicEnumStr := chi.URLParam(r, "topic_enum")
+	topicEnum := analysis.Topic(topicEnumStr)
+	if !topicEnum.IsValid() {
+		h.responder.RespondContent(resp, ce.ErrBadRequest("invalid topic enum"))
+		return
+	}
+
+	logger.Info("getting topic details", "topic_enum", topicEnumStr)
+	details, err := h.feedbackSummaryService.GetTopicDetails(ctx, topicEnum)
+	if err != nil {
+		logger.RecordSpanError(ctx, err)
+		logger.Error("error getting topic details", err, "topic_enum", topicEnumStr)
+		h.handleSvcError(resp, err)
+		return
+	}
+
+	// Convert feedbacks to response format
+	feedbackResponses := make([]responses.FeedbackResponse, len(details.Feedbacks))
+	for i, fb := range details.Feedbacks {
+		feedbackResponses[i] = *responses.FeedbackResponseFromDomain(fb)
+	}
+
+	response := responses.TopicDetailsResponse{
+		Topic:            string(details.Topic),
+		TopicName:        details.Topic.DisplayName(),
+		TopicDescription: details.Topic.Description(),
+		Summary:          details.Summary,
+		FeedbackCount:    details.FeedbackCount,
+		AverageRating:    details.AverageRating,
+		Sentiment:        string(details.Sentiment),
+		Feedbacks:        feedbackResponses,
 	}
 
 	h.responder.RespondContent(resp, responder.NewGenericResponse(http.StatusOK, response))

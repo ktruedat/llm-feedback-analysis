@@ -120,3 +120,35 @@ type AnalysisListResponse struct {
 	Analyses []AnalysisResponse `json:"analyses"`
 	Total    int                `json:"total" example:"10"`
 }
+
+// TopicStatsResponse represents statistics for a topic
+//
+//	@Description	Response payload containing topic statistics from the latest analysis.
+type TopicStatsResponse struct {
+	Topic         string  `json:"topic" example:"product_functionality_features"`
+	TopicName     string  `json:"topic_name" example:"Product Functionality & Features"`
+	FeedbackCount int     `json:"feedback_count" example:"10"`
+	AverageRating float64 `json:"average_rating" example:"4.5"`
+}
+
+// TopicStatsListResponse represents a list of topic statistics
+//
+//	@Description	Response payload containing a list of topic statistics.
+type TopicStatsListResponse struct {
+	Topics []TopicStatsResponse `json:"topics"`
+	Total  int                  `json:"total" example:"13"`
+}
+
+// TopicDetailsResponse represents detailed information about a topic with all associated feedbacks
+//
+//	@Description	Response payload containing detailed topic information with feedbacks.
+type TopicDetailsResponse struct {
+	Topic            string             `json:"topic" example:"product_functionality_features"`
+	TopicName        string             `json:"topic_name" example:"Product Functionality & Features"`
+	TopicDescription string             `json:"topic_description"`
+	Summary          string             `json:"summary"`
+	FeedbackCount    int                `json:"feedback_count" example:"10"`
+	AverageRating    float64            `json:"average_rating" example:"4.5"`
+	Sentiment        string             `json:"sentiment" example:"positive"`
+	Feedbacks        []FeedbackResponse `json:"feedbacks"`
+}

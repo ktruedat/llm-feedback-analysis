@@ -114,6 +114,17 @@ export class ApiClient {
     const response = await this.client.get(`/analyses/${id}`);
     return response.data;
   }
+
+  // Topic endpoints
+  async getTopicsWithStats() {
+    const response = await this.client.get('/topics');
+    return response?.data || response;
+  }
+
+  async getTopicDetails(topicEnum: string) {
+    const response = await this.client.get(`/topics/${topicEnum}`);
+    return response?.data || response;
+  }
 }
 
 export const apiClient = new ApiClient();

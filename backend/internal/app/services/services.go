@@ -70,4 +70,26 @@ type FeedbackSummaryService interface {
 		map[uuid.UUID][]*analysis.TopicAnalysis, // feedback ID -> topics
 		error,
 	)
+	// GetTopicsWithStats retrieves all predefined topics with their statistics from the latest analysis.
+	// Returns topics with feedback count and average rating.
+	GetTopicsWithStats(ctx context.Context) ([]TopicStats, error)
+	// GetTopicDetails retrieves details for a specific topic enum with all associated feedbacks.
+	GetTopicDetails(ctx context.Context, topicEnum analysis.Topic) (*TopicDetails, error)
+}
+
+// TopicStats represents statistics for a topic from the latest analysis.
+type TopicStats struct {
+	Topic         analysis.Topic
+	FeedbackCount int
+	AverageRating float64
+}
+
+// TopicDetails represents detailed information about a topic with all associated feedbacks.
+type TopicDetails struct {
+	Topic         analysis.Topic
+	Summary       string
+	FeedbackCount int
+	AverageRating float64
+	Sentiment     analysis.Sentiment
+	Feedbacks     []*feedback.Feedback
 }

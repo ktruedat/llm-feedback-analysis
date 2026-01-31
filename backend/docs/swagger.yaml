@@ -166,7 +166,7 @@ definitions:
     description: Response payload containing feedback details with associated topics.
     properties:
       comment:
-        example: Great service!
+        example: Great product!
         type: string
       created_at:
         example: "2024-01-01T00:00:00Z"
@@ -240,6 +240,60 @@ definitions:
         type: string
       updated_at:
         example: "2024-01-01T00:00:00Z"
+        type: string
+    type: object
+  responses.TopicDetailsResponse:
+    description: Response payload containing detailed topic information with feedbacks.
+    properties:
+      average_rating:
+        example: 4.5
+        type: number
+      feedback_count:
+        example: 10
+        type: integer
+      feedbacks:
+        items:
+          $ref: '#/definitions/responses.FeedbackResponse'
+        type: array
+      sentiment:
+        example: positive
+        type: string
+      summary:
+        type: string
+      topic:
+        example: product_functionality_features
+        type: string
+      topic_description:
+        type: string
+      topic_name:
+        example: Product Functionality & Features
+        type: string
+    type: object
+  responses.TopicStatsListResponse:
+    description: Response payload containing a list of topic statistics.
+    properties:
+      topics:
+        items:
+          $ref: '#/definitions/responses.TopicStatsResponse'
+        type: array
+      total:
+        example: 13
+        type: integer
+    type: object
+  responses.TopicStatsResponse:
+    description: Response payload containing topic statistics from the latest analysis.
+    properties:
+      average_rating:
+        example: 4.5
+        type: number
+      feedback_count:
+        example: 10
+        type: integer
+      topic:
+        example: product_functionality_features
+        type: string
+      topic_name:
+        example: Product Functionality & Features
         type: string
     type: object
   responses.UserInfo:
@@ -656,6 +710,79 @@ paths:
       summary: Get feedback by ID
       tags:
       - feedbacks
+  /topics:
+    get:
+      consumes:
+      - application/json
+      description: Retrieve all predefined topics with feedback count and average
+        rating from the latest analysis
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Topics with stats retrieved successfully
+          schema:
+            $ref: '#/definitions/responses.TopicStatsListResponse'
+        "401":
+          description: Unauthorized - invalid or missing JWT token
+          schema:
+            additionalProperties: true
+            type: object
+        "500":
+          description: Internal server error
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Get topics with statistics
+      tags:
+      - topics
+  /topics/{topic_enum}:
+    get:
+      consumes:
+      - application/json
+      description: Retrieve detailed information about a specific topic enum with
+        all associated feedbacks
+      parameters:
+      - description: Topic enum value
+        example: product_functionality_features
+        in: path
+        name: topic_enum
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Topic details retrieved successfully
+          schema:
+            $ref: '#/definitions/responses.TopicDetailsResponse'
+        "400":
+          description: Bad request - invalid topic enum
+          schema:
+            additionalProperties: true
+            type: object
+        "401":
+          description: Unauthorized - invalid or missing JWT token
+          schema:
+            additionalProperties: true
+            type: object
+        "404":
+          description: Topic not found in latest analysis
+          schema:
+            additionalProperties: true
+            type: object
+        "500":
+          description: Internal server error
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Get topic details
+      tags:
+      - topics
 securityDefinitions:
   BearerAuth:
     description: 'JWT token for authentication. Use the format: "Bearer <token>".

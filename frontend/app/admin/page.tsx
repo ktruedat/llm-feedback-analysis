@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation';
 import { apiClient } from '@/lib/api-client';
 import { useAuthStore } from '@/store/auth-store';
 import { AdminRoute } from '@/components/AdminRoute';
-import { Feedback, Analysis } from '@/types';
+import { Feedback, Analysis, TopicStats } from '@/types';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
@@ -28,10 +28,13 @@ function AdminDashboard() {
   const [error, setError] = useState<string | null>(null);
   const [latestAnalysis, setLatestAnalysis] = useState<Analysis | null>(null);
   const [isLoadingAnalysis, setIsLoadingAnalysis] = useState(false);
+  const [topics, setTopics] = useState<TopicStats[]>([]);
+  const [isLoadingTopics, setIsLoadingTopics] = useState(false);
 
   useEffect(() => {
     loadFeedbacks();
     loadLatestAnalysis();
+    loadTopics();
   }, []);
 
   const loadLatestAnalysis = async () => {
@@ -50,6 +53,19 @@ function AdminDashboard() {
       }
     } finally {
       setIsLoadingAnalysis(false);
+    }
+  };
+
+  const loadTopics = async () => {
+    setIsLoadingTopics(true);
+    try {
+      const response = await apiClient.getTopicsWithStats();
+      const topicsData = response?.topics || response?.data?.topics || [];
+      setTopics(topicsData);
+    } catch (err: any) {
+      console.error('Failed to load topics:', err);
+    } finally {
+      setIsLoadingTopics(false);
     }
   };
 
@@ -259,6 +275,46 @@ function AdminDashboard() {
               )}
               {!isLoadingAnalysis && !latestAnalysis && (
                 <p className="text-muted-foreground text-sm">No analysis available yet. Analyses are generated automatically as feedbacks are submitted.</p>
+              )}
+            </CardContent>
+          </Card>
+
+          {/* Topics Section */}
+          <Card>
+            <CardHeader>
+              <CardTitle>Topics</CardTitle>
+              <CardDescription>Explore feedback by topic category</CardDescription>
+            </CardHeader>
+            <CardContent>
+              {isLoadingTopics && (
+                <p className="text-muted-foreground text-sm">Loading topics...</p>
+              )}
+              {!isLoadingTopics && topics.length > 0 && (
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                  {topics.map((topic) => (
+                    <Button
+                      key={topic.topic}
+                      variant="outline"
+                      className="h-auto p-4 flex flex-col items-start justify-start hover:bg-accent transition-colors"
+                      onClick={() => router.push(`/admin/topics/${topic.topic}`)}
+                    >
+                      <div className="w-full">
+                        <h3 className="font-semibold text-left mb-2">{topic.topic_name}</h3>
+                        <div className="flex items-center justify-between text-sm text-muted-foreground">
+                          <span>{topic.feedback_count} feedback{topic.feedback_count !== 1 ? 's' : ''}</span>
+                          {topic.average_rating > 0 && (
+                            <span className="font-medium">
+                              {topic.average_rating.toFixed(1)} ⭐
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                    </Button>
+                  ))}
+                </div>
+              )}
+              {!isLoadingTopics && topics.length === 0 && (
+                <p className="text-muted-foreground text-sm">No topics available yet.</p>
               )}
             </CardContent>
           </Card>
