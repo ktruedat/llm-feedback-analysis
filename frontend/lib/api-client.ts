@@ -98,6 +98,22 @@ export class ApiClient {
   async deleteFeedback(id: string) {
     await this.client.delete(`/feedbacks/${id}`);
   }
+
+  // Analysis endpoints
+  async getLatestAnalysis() {
+    const response = await this.client.get('/analyses/latest');
+    return response.data;
+  }
+
+  async listAnalyses() {
+    const response = await this.client.get('/analyses');
+    return response.data;
+  }
+
+  async getAnalysis(id: string) {
+    const response = await this.client.get(`/analyses/${id}`);
+    return response.data;
+  }
 }
 
 export const apiClient = new ApiClient();
