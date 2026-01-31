@@ -71,7 +71,7 @@ func (app *App) Start() error {
 		logger,
 	)
 
-	// Create analyzer service
+	// Create analyzer service (performs analysis)
 	analyzerSvc := analysis.NewAnalyzerService(
 		logger,
 		&app.cfg.LLMAnalysis,
@@ -97,12 +97,14 @@ func (app *App) Start() error {
 	)
 	userSvc := user.NewUserService(logger, errChecker, userRepo, &app.cfg.JWT, transactor)
 
+	feedbackSummarySvc := analysis.NewFeedbackSummaryService(logger, analysisRepo, feedbackRepo)
 	feedbackV1Handlers := handlersv1.NewHandlers(
 		app.router,
 		logger,
 		app.restResponder,
 		feedbackSvc,
 		userSvc,
+		feedbackSummarySvc,
 		&app.cfg.JWT,
 		trace.WithTracingEnabled(app.cfg.Tracing.Enabled),
 	)

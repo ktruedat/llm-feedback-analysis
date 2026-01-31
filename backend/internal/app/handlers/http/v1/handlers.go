@@ -11,13 +11,14 @@ import (
 )
 
 type Handlers struct {
-	r               chi.Router
-	logger          tracelog.TraceLogger
-	responder       responder.RestResponder
-	feedbackService services.FeedbackService
-	userService     services.UserService
-	jwtCfg          *config.JWT
-	tracingEnabled  bool
+	r                      chi.Router
+	logger                 tracelog.TraceLogger
+	responder              responder.RestResponder
+	feedbackService        services.FeedbackService
+	userService            services.UserService
+	feedbackSummaryService services.FeedbackSummaryService
+	jwtCfg                 *config.JWT
+	tracingEnabled         bool
 }
 
 func NewHandlers(
@@ -26,17 +27,19 @@ func NewHandlers(
 	responder responder.RestResponder,
 	feedbackService services.FeedbackService,
 	userService services.UserService,
+	feedbackSummaryService services.FeedbackSummaryService,
 	jwtCfg *config.JWT,
 	opts ...trace.InstrumentationOption,
 ) handlers.Handlers {
 	h := &Handlers{
-		r:               r,
-		logger:          logger.NewGroup("handlers_http"),
-		responder:       responder,
-		feedbackService: feedbackService,
-		userService:     userService,
-		jwtCfg:          jwtCfg,
-		tracingEnabled:  false,
+		r:                      r,
+		logger:                 logger.NewGroup("handlers_http"),
+		responder:              responder,
+		feedbackService:        feedbackService,
+		userService:            userService,
+		feedbackSummaryService: feedbackSummaryService,
+		jwtCfg:                 jwtCfg,
+		tracingEnabled:         false,
 	}
 
 	// Apply instrumentation options to the handler
@@ -49,13 +52,13 @@ func NewHandlers(
 
 func (h *Handlers) RegisterRoutes() {
 	// Register routes hierarchically under /api
-	h.r.Route("/api", func(r chi.Router) {
-		// Register auth routes (public, no JWT required)
-		h.registerAuthRoutes(r)
-
-		// Register feedback routes (protected, JWT required)
-		h.registerFeedbackRoutes(r)
-	})
+	h.r.Route(
+		"/api", func(r chi.Router) {
+			h.registerAuthRoutes(r)
+			h.registerFeedbackRoutes(r)
+			h.registerAnalysisRoutes(r)
+		},
+	)
 }
 
 // SetTracing implements trace.Instrumented interface.
