@@ -52,41 +52,38 @@ This backend combines two powerful architectural approaches:
 - Domain entities are pure and contain all business logic
 - All operations respect business rules enforced by the domain
 
+### System Architecture Overview
+
+![System Architecture](docs/images/architecture-overview.png)
+
+*The diagram above illustrates the complete system architecture, showing how external services, application layers,
+domain logic, infrastructure, and observability components interact.*
+
 ### The Flow
+
+![Request Flow - Submit Feedback](docs/images/request-flow-feedback.png)
+
+*This sequence diagram shows how a feedback submission request flows through all layers, from the HTTP handler through
+domain validation to database persistence, and how the async analyzer is notified.*
+
+#### Layer Flow Summary
 
 When a request comes in, it flows through these layers:
 
 ```
-HTTP Request 
-    ↓
-Handlers (Input Layer) 
-    ↓
-Transport Layer (Request/Response DTOs)
-    ↓
-Services (Business Logic Execution)
-    ↓
-Repository (Data Persistence)
-    ↓
-PostgreSQL Database
+HTTP Request → Handlers → Transport (DTOs) → Services → Domain (Validation) → Repository → PostgreSQL
 ```
 
 And the reverse for responses:
 
 ```
-PostgreSQL Database
-    ↓
-Repository (Data Retrieval)
-    ↓
-Domain Entities (Business Objects)
-    ↓
-Services (Processing)
-    ↓
-Transport Layer (Response DTOs)
-    ↓
-Handlers (HTTP Response)
-    ↓
-HTTP Response
+PostgreSQL → Repository → Domain Entities → Services → Transport (DTOs) → Handlers → HTTP Response
 ```
+
+![Clean Architecture Layers](docs/images/clean-architecture-layers.png)
+
+*The clean architecture diagram shows the dependency flow: outer layers (infrastructure) depend on inner layers (
+domain), never the reverse.*
 
 ---
 
@@ -106,6 +103,11 @@ By looking at the [domain](internal/domain/) folder, you can immediately underst
 - How they behave
 - What business rules govern them
 - How they relate to each other
+
+![Domain-Driven Design Structure](docs/images/domain-driven-design.png)
+
+*This diagram illustrates how domain aggregates (Feedback, Analysis, User) contain entities, value objects, and builders
+that enforce business rules. Services use the domain, and repositories implement persistence.*
 
 ### 2. Separation by Domain Entity
 
@@ -375,6 +377,11 @@ database schema over time. Each migration is a step in your database's history:
 5. `20260130000003_create_analysis_tables.sql` - AI analysis storage
 6. `20260130000004_add_topic_enum.sql` - Topic categorization
 
+![Database Schema](docs/images/database-schema.png)
+
+*Entity-relationship diagram showing the database schema with users, feedbacks, analyses, and topic_analyses tables,
+along with their relationships and key fields.*
+
 **How it works**:
 
 - Goose tracks applied migrations in a `goose_db_version` table
@@ -450,6 +457,13 @@ Because we separate handlers from business logic:
 - **Secret key**: Must be at least 32 characters (set via `JWT_SECRET` env var)
 - **Algorithm**: HS256 (HMAC with SHA-256)
 - **Expiration**: 24 hours (configurable)
+
+### Technology Stack Overview
+
+![Technology Stack](docs/images/technology-stack.png)
+
+*Complete overview of development tools (SQLC, Goose, Swagger), runtime components (Chi, PGX, JWT), external services (
+OpenAI, PostgreSQL), and observability stack (OpenTelemetry, Tempo).*
 
 ---
 
@@ -994,3 +1008,65 @@ This backend is built with best practices in mind:
 The code is organized to be **maintainable, testable, and scalable**. Each layer has a clear purpose, and business logic
 is protected in the domain layer. This makes it easy to understand, modify, and extend the system as requirements
 evolve.
+
+---
+
+## Observability & Distributed Tracing
+
+The backend includes a complete observability stack using **OpenTelemetry** and **Grafana Tempo** for distributed
+tracing.
+
+### Why Observability Matters
+
+- **Performance monitoring** - Track request latency across all layers
+- **Debugging** - See exactly where time is spent in each request
+- **Dependency analysis** - Understand database query performance
+- **Error tracking** - Identify where failures occur in the call chain
+- **Production insights** - Real-time visibility into system behavior
+
+### Tracing Implementation
+
+The application automatically instruments:
+
+- ✅ HTTP requests (Chi router)
+- ✅ Service layer calls
+- ✅ Database queries (PGX PostgreSQL driver)
+- ✅ External API calls (OpenAI)
+
+Every request generates a **trace** that shows:
+
+- Total request duration
+- Time spent in each layer (handler → service → repository → database)
+- Database query execution time
+- Parent-child span relationships
+
+### Grafana Tempo Screenshot
+
+![Grafana Tempo Distributed Tracing](docs/images/grafana-tempo-trace.png)
+
+*Screenshot showing a distributed trace in Grafana Tempo for a GET /api/feedbacks request. The trace spans 2.5ms total
+and shows the breakdown: HTTP handler (0µs), service layer (624µs), feedback list query (1.19ms), and database pool
+acquisition (768µs). Notice the hierarchical span structure showing the complete request flow through all layers.*
+
+### Access Tracing UI
+
+When running with Docker Compose:
+
+- **Grafana Tempo**: Go to http://localhost:3200 and search for Data Source `Tempo`
+- **Paste the trace ID** from application logs to view detailed traces
+- **Traces are automatically collected** via OpenTelemetry Collector
+- **No additional configuration needed** - works out of the box
+
+### Configuration
+
+Tracing can be configured in `config.yaml`:
+
+```yaml
+tracing:
+  enabled: true
+  otel_endpoint: http://otel-collector:4318
+  tempo_endpoint: http://tempo:3200
+  service_name: llm-feedback-analysis
+```
+
+Set `enabled: false` to disable tracing (not recommended for production).
