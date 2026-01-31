@@ -4,90 +4,220 @@ package docs
 import "github.com/swaggo/swag"
 
 const docTemplate = `{
-    "openapi": "3.0.0",
+    "schemes": {{ marshal .Schemes }},
+    "swagger": "2.0",
     "info": {
-        "title": "LLM Feedback Analysis API",
-        "description": "This is a LLM Feedback Analysis API server.",
-        "version": "1.0",
-        "contact": {}
+        "description": "{{escape .Description}}",
+        "title": "{{.Title}}",
+        "contact": {},
+        "version": "{{.Version}}"
     },
-    "servers": [
-        {
-            "url": "https://localhost:8080/api"
-        }
-    ],
+    "host": "{{.Host}}",
+    "basePath": "{{.BasePath}}",
     "paths": {
-        "/auth/login": {
-            "post": {
+        "/analyses": {
+            "get": {
+                "description": "Retrieve all analyses ordered by creation date (newest first) for the history page",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
                 "tags": [
-                    "auth"
+                    "analyses"
                 ],
-                "summary": "Login user",
-                "description": "Authenticate user with email and password, returns JWT token",
-                "parameters": [
-                    {
-                        "name": "request",
-                        "in": "body",
-                        "description": "User login request",
-                        "required": true,
-                        "schema": {
-                            "$ref": "#/components/schemas/requests.LoginUserRequest"
-                        }
-                    }
-                ],
-                "requestBody": {
-                    "description": "User login request",
-                    "required": true,
-                    "content": {
-                        "application/json": {
-                            "schema": {
-                                "$ref": "#/components/schemas/requests.LoginUserRequest"
-                            }
-                        }
-                    }
-                },
+                "summary": "List all analyses",
                 "responses": {
                     "200": {
-                        "description": "User authenticated successfully",
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "$ref": "#/components/schemas/responses.LoginUserResponse"
-                                }
-                            }
-                        }
-                    },
-                    "400": {
-                        "description": "Bad request - invalid request body",
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "additionalProperties": true,
-                                    "type": "object"
-                                }
-                            }
+                        "description": "Analyses retrieved successfully",
+                        "schema": {
+                            "$ref": "#/definitions/responses.AnalysisListResponse"
                         }
                     },
                     "401": {
-                        "description": "Unauthorized - invalid credentials",
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "additionalProperties": true,
-                                    "type": "object"
-                                }
-                            }
+                        "description": "Unauthorized - invalid or missing JWT token",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
                         }
                     },
                     "500": {
                         "description": "Internal server error",
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "additionalProperties": true,
-                                    "type": "object"
-                                }
-                            }
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    }
+                },
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/analyses/latest": {
+            "get": {
+                "description": "Retrieve the most recent completed analysis for the dashboard",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "analyses"
+                ],
+                "summary": "Get latest analysis",
+                "responses": {
+                    "200": {
+                        "description": "Latest analysis retrieved successfully",
+                        "schema": {
+                            "$ref": "#/definitions/responses.AnalysisResponse"
+                        }
+                    },
+                    "204": {
+                        "description": "No analysis found"
+                    },
+                    "401": {
+                        "description": "Unauthorized - invalid or missing JWT token",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "500": {
+                        "description": "Internal server error",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    }
+                },
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/analyses/{id}": {
+            "get": {
+                "description": "Retrieve a specific analysis with its topics and analyzed feedbacks with their associated topics",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "analyses"
+                ],
+                "summary": "Get analysis by ID",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "example": "550e8400-e29b-41d4-a716-446655440000",
+                        "description": "Analysis ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Analysis retrieved successfully",
+                        "schema": {
+                            "$ref": "#/definitions/responses.AnalysisDetailResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad request - invalid analysis ID format",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized - invalid or missing JWT token",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "404": {
+                        "description": "Analysis not found",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "500": {
+                        "description": "Internal server error",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    }
+                },
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/auth/login": {
+            "post": {
+                "description": "Authenticate user with email and password, returns JWT token",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "auth"
+                ],
+                "summary": "Login user",
+                "parameters": [
+                    {
+                        "description": "User login request",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/requests.LoginUserRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "User authenticated successfully",
+                        "schema": {
+                            "$ref": "#/definitions/responses.LoginUserResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad request - invalid request body",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized - invalid credentials",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "500": {
+                        "description": "Internal server error",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
                         }
                     }
                 }
@@ -95,75 +225,54 @@ const docTemplate = `{
         },
         "/auth/register": {
             "post": {
+                "description": "Create a new user account with email and password",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
                 "tags": [
                     "auth"
                 ],
                 "summary": "Register a new user",
-                "description": "Create a new user account with email and password",
                 "parameters": [
                     {
+                        "description": "User registration request",
                         "name": "request",
                         "in": "body",
-                        "description": "User registration request",
                         "required": true,
                         "schema": {
-                            "$ref": "#/components/schemas/requests.RegisterUserRequest"
+                            "$ref": "#/definitions/requests.RegisterUserRequest"
                         }
                     }
                 ],
-                "requestBody": {
-                    "description": "User registration request",
-                    "required": true,
-                    "content": {
-                        "application/json": {
-                            "schema": {
-                                "$ref": "#/components/schemas/requests.RegisterUserRequest"
-                            }
-                        }
-                    }
-                },
                 "responses": {
                     "201": {
                         "description": "User registered successfully",
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "$ref": "#/components/schemas/responses.RegisterUserResponse"
-                                }
-                            }
+                        "schema": {
+                            "$ref": "#/definitions/responses.RegisterUserResponse"
                         }
                     },
                     "400": {
                         "description": "Bad request - invalid request body or validation error",
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "additionalProperties": true,
-                                    "type": "object"
-                                }
-                            }
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
                         }
                     },
                     "409": {
                         "description": "Conflict - email already exists",
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "additionalProperties": true,
-                                    "type": "object"
-                                }
-                            }
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
                         }
                     },
                     "500": {
                         "description": "Internal server error",
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "additionalProperties": true,
-                                    "type": "object"
-                                }
-                            }
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
                         }
                     }
                 }
@@ -171,73 +280,59 @@ const docTemplate = `{
         },
         "/feedbacks": {
             "get": {
+                "description": "Retrieve a list of feedback entries with optional pagination",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
                 "tags": [
                     "feedbacks"
                 ],
                 "summary": "List feedbacks",
-                "description": "Retrieve a list of feedback entries with optional pagination",
                 "parameters": [
                     {
-                        "name": "limit",
-                        "in": "query",
+                        "type": "integer",
+                        "example": 10,
                         "description": "Maximum number of feedbacks to return (default: 100)",
-                        "schema": {
-                            "type": "integer"
-                        },
-                        "example": 10
+                        "name": "limit",
+                        "in": "query"
                     },
                     {
-                        "name": "offset",
-                        "in": "query",
+                        "type": "integer",
+                        "example": 0,
                         "description": "Number of feedbacks to skip (default: 0)",
-                        "schema": {
-                            "type": "integer"
-                        },
-                        "example": 0
+                        "name": "offset",
+                        "in": "query"
                     }
                 ],
                 "responses": {
                     "200": {
                         "description": "Feedbacks retrieved successfully",
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "$ref": "#/components/schemas/responses.FeedbackListResponse"
-                                }
-                            }
+                        "schema": {
+                            "$ref": "#/definitions/responses.FeedbackListResponse"
                         }
                     },
                     "400": {
                         "description": "Bad request - invalid query parameters",
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "additionalProperties": true,
-                                    "type": "object"
-                                }
-                            }
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
                         }
                     },
                     "401": {
                         "description": "Unauthorized - invalid or missing JWT token",
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "additionalProperties": true,
-                                    "type": "object"
-                                }
-                            }
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
                         }
                     },
                     "500": {
                         "description": "Internal server error",
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "additionalProperties": true,
-                                    "type": "object"
-                                }
-                            }
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
                         }
                     }
                 },
@@ -248,113 +343,54 @@ const docTemplate = `{
                 ]
             },
             "post": {
+                "description": "Create a new feedback submission with rating and comment",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
                 "tags": [
                     "feedbacks"
                 ],
                 "summary": "Create a new feedback",
-                "description": "Create a new feedback submission with rating and comment",
                 "parameters": [
                     {
+                        "description": "Feedback creation request",
                         "name": "request",
                         "in": "body",
-                        "description": "Feedback creation request",
                         "required": true,
                         "schema": {
-                            "$ref": "#/components/schemas/requests.CreateFeedbackRequest"
+                            "$ref": "#/definitions/requests.CreateFeedbackRequest"
                         }
                     }
                 ],
-                "requestBody": {
-                    "description": "Feedback creation request",
-                    "required": true,
-                    "content": {
-                        "application/json": {
-                            "schema": {
-                                "$ref": "#/components/schemas/requests.CreateFeedbackRequest"
-                            },
-                            "examples": {
-                                "comment_too_long": {
-                                    "value": {
-                                        "comment": "This comment is way too long and exceeds the maximum allowed length of 1000 characters. Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum. Sed ut perspiciatis unde omnis iste natus error sit voluptatem accusantium doloremque laudantium, totam rem aperiam, eaque ipsa quae ab illo inventore veritatis et quasi architecto beatae vitae dicta sunt explicabo. Nemo enim ipsam voluptatem quia voluptas sit aspernatur aut odit aut fugit, sed quia consequuntur magni dolores eos qui ratione voluptatem sequi nesciunt. Neque porro quisquam est, qui dolorem ipsum quia dolor sit amet, consectetur, adipisci velit, sed quia non numquam eius modi tempora incidunt ut labore et dolore magnam aliquam quaerat voluptatem. Ut enim ad minima veniam, quis nostrum exercitationem ullam corporis suscipit laboriosam, nisi ut aliquid ex ea commodi consequatur? Quis autem vel eum iure reprehenderit qui in ea voluptate velit esse quam nihil molestiae consequatur, vel illum qui dolorem eum fugiat quo voluptas nulla pariatur?",
-                                        "rating": 2
-                                    }
-                                },
-                                "empty_comment": {
-                                    "value": {
-                                        "comment": "",
-                                        "rating": 3
-                                    }
-                                },
-                                "full": {
-                                    "value": {
-                                        "comment": "Overall, I'm very satisfied with the service. The response time was excellent and the staff was very helpful. There were a few minor issues, but they were quickly resolved.",
-                                        "rating": 4
-                                    }
-                                },
-                                "invalid_rating_high": {
-                                    "value": {
-                                        "comment": "This rating is too high",
-                                        "rating": 6
-                                    }
-                                },
-                                "invalid_rating_low": {
-                                    "value": {
-                                        "comment": "This rating is too low",
-                                        "rating": 0
-                                    }
-                                },
-                                "minimal": {
-                                    "value": {
-                                        "comment": "Great service!",
-                                        "rating": 5
-                                    }
-                                }
-                            }
-                        }
-                    }
-                },
                 "responses": {
                     "201": {
                         "description": "Feedback created successfully",
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "$ref": "#/components/schemas/responses.FeedbackResponse"
-                                }
-                            }
+                        "schema": {
+                            "$ref": "#/definitions/responses.FeedbackResponse"
                         }
                     },
                     "400": {
                         "description": "Bad request - invalid request body",
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "additionalProperties": true,
-                                    "type": "object"
-                                }
-                            }
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
                         }
                     },
                     "401": {
                         "description": "Unauthorized - invalid or missing JWT token",
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "additionalProperties": true,
-                                    "type": "object"
-                                }
-                            }
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
                         }
                     },
                     "500": {
                         "description": "Internal server error",
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "additionalProperties": true,
-                                    "type": "object"
-                                }
-                            }
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
                         }
                     }
                 },
@@ -362,81 +398,91 @@ const docTemplate = `{
                     {
                         "BearerAuth": []
                     }
-                ]
+                ],
+                "x-examples": {
+                    "comment_too_long": {
+                        "comment": "This comment is way too long and exceeds the maximum allowed length of 1000 characters. Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum. Sed ut perspiciatis unde omnis iste natus error sit voluptatem accusantium doloremque laudantium, totam rem aperiam, eaque ipsa quae ab illo inventore veritatis et quasi architecto beatae vitae dicta sunt explicabo. Nemo enim ipsam voluptatem quia voluptas sit aspernatur aut odit aut fugit, sed quia consequuntur magni dolores eos qui ratione voluptatem sequi nesciunt. Neque porro quisquam est, qui dolorem ipsum quia dolor sit amet, consectetur, adipisci velit, sed quia non numquam eius modi tempora incidunt ut labore et dolore magnam aliquam quaerat voluptatem. Ut enim ad minima veniam, quis nostrum exercitationem ullam corporis suscipit laboriosam, nisi ut aliquid ex ea commodi consequatur? Quis autem vel eum iure reprehenderit qui in ea voluptate velit esse quam nihil molestiae consequatur, vel illum qui dolorem eum fugiat quo voluptas nulla pariatur?",
+                        "rating": 2
+                    },
+                    "empty_comment": {
+                        "comment": "",
+                        "rating": 3
+                    },
+                    "full": {
+                        "comment": "Overall, I'm very satisfied with the service. The response time was excellent and the staff was very helpful. There were a few minor issues, but they were quickly resolved.",
+                        "rating": 4
+                    },
+                    "invalid_rating_high": {
+                        "comment": "This rating is too high",
+                        "rating": 6
+                    },
+                    "invalid_rating_low": {
+                        "comment": "This rating is too low",
+                        "rating": 0
+                    },
+                    "minimal": {
+                        "comment": "Great service!",
+                        "rating": 5
+                    }
+                }
             }
         },
         "/feedbacks/{id}": {
             "get": {
+                "description": "Retrieve a specific feedback entry by its unique identifier",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
                 "tags": [
                     "feedbacks"
                 ],
                 "summary": "Get feedback by ID",
-                "description": "Retrieve a specific feedback entry by its unique identifier",
                 "parameters": [
                     {
+                        "type": "string",
+                        "example": "550e8400-e29b-41d4-a716-446655440000",
+                        "description": "Feedback ID",
                         "name": "id",
                         "in": "path",
-                        "description": "Feedback ID",
-                        "required": true,
-                        "schema": {
-                            "type": "string"
-                        },
-                        "example": "550e8400-e29b-41d4-a716-446655440000"
+                        "required": true
                     }
                 ],
                 "responses": {
                     "200": {
                         "description": "Feedback retrieved successfully",
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "$ref": "#/components/schemas/responses.FeedbackResponse"
-                                }
-                            }
+                        "schema": {
+                            "$ref": "#/definitions/responses.FeedbackResponse"
                         }
                     },
                     "400": {
                         "description": "Bad request - invalid feedback ID format",
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "additionalProperties": true,
-                                    "type": "object"
-                                }
-                            }
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
                         }
                     },
                     "401": {
                         "description": "Unauthorized - invalid or missing JWT token",
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "additionalProperties": true,
-                                    "type": "object"
-                                }
-                            }
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
                         }
                     },
                     "404": {
                         "description": "Feedback not found",
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "additionalProperties": true,
-                                    "type": "object"
-                                }
-                            }
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
                         }
                     },
                     "500": {
                         "description": "Internal server error",
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "additionalProperties": true,
-                                    "type": "object"
-                                }
-                            }
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
                         }
                     }
                 },
@@ -447,21 +493,25 @@ const docTemplate = `{
                 ]
             },
             "delete": {
+                "description": "Soft delete a feedback entry by its unique identifier. Requires admin role.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
                 "tags": [
                     "feedbacks"
                 ],
                 "summary": "Delete feedback (Admin only)",
-                "description": "Soft delete a feedback entry by its unique identifier. Requires admin role.",
                 "parameters": [
                     {
+                        "type": "string",
+                        "example": "550e8400-e29b-41d4-a716-446655440000",
+                        "description": "Feedback ID",
                         "name": "id",
                         "in": "path",
-                        "description": "Feedback ID",
-                        "required": true,
-                        "schema": {
-                            "type": "string"
-                        },
-                        "example": "550e8400-e29b-41d4-a716-446655440000"
+                        "required": true
                     }
                 ],
                 "responses": {
@@ -470,57 +520,37 @@ const docTemplate = `{
                     },
                     "400": {
                         "description": "Bad request - invalid feedback ID format",
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "additionalProperties": true,
-                                    "type": "object"
-                                }
-                            }
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
                         }
                     },
                     "401": {
                         "description": "Unauthorized - invalid or missing JWT token",
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "additionalProperties": true,
-                                    "type": "object"
-                                }
-                            }
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
                         }
                     },
                     "403": {
                         "description": "Forbidden - admin role required",
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "additionalProperties": true,
-                                    "type": "object"
-                                }
-                            }
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
                         }
                     },
                     "404": {
                         "description": "Feedback not found",
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "additionalProperties": true,
-                                    "type": "object"
-                                }
-                            }
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
                         }
                     },
                     "500": {
                         "description": "Internal server error",
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "additionalProperties": true,
-                                    "type": "object"
-                                }
-                            }
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
                         }
                     }
                 },
@@ -532,161 +562,371 @@ const docTemplate = `{
             }
         }
     },
-    "components": {
-        "schemas": {
-            "requests.CreateFeedbackRequest": {
-                "description": "Request payload for creating a new feedback submission.",
-                "properties": {
-                    "comment": {
-                        "description": "Feedback comment text, 1-1000 characters (required)",
-                        "example": "Really nice!",
-                        "type": "string"
-                    },
-                    "rating": {
-                        "description": "Rating value from 1 to 5 (required)",
-                        "example": 5,
-                        "maximum": 5,
-                        "minimum": 1,
-                        "type": "integer"
-                    }
+    "definitions": {
+        "requests.CreateFeedbackRequest": {
+            "description": "Request payload for creating a new feedback submission.",
+            "type": "object",
+            "required": [
+                "rating"
+            ],
+            "properties": {
+                "comment": {
+                    "description": "Feedback comment text, 1-1000 characters (required)",
+                    "type": "string",
+                    "example": "Really nice!"
                 },
-                "required": [
-                    "rating"
-                ],
-                "type": "object"
-            },
-            "requests.LoginUserRequest": {
-                "description": "Request payload for user login/authentication.",
-                "properties": {
-                    "email": {
-                        "description": "User email address (required)",
-                        "example": "user@example.com",
-                        "type": "string"
-                    },
-                    "password": {
-                        "description": "User password (required)",
-                        "example": "SecurePassword123!",
-                        "type": "string"
-                    }
-                },
-                "required": [
-                    "email",
-                    "password"
-                ],
-                "type": "object"
-            },
-            "requests.RegisterUserRequest": {
-                "description": "Request payload for registering a new user account.",
-                "properties": {
-                    "email": {
-                        "description": "User email address (required, must be valid email)",
-                        "example": "user@example.com",
-                        "type": "string"
-                    },
-                    "password": {
-                        "description": "User password (required, minimum 8 characters)",
-                        "example": "SecurePassword123!",
-                        "minLength": 8,
-                        "type": "string"
-                    }
-                },
-                "required": [
-                    "email",
-                    "password"
-                ],
-                "type": "object"
-            },
-            "responses.FeedbackListResponse": {
-                "description": "Response payload containing a list of feedback entries.",
-                "properties": {
-                    "feedbacks": {
-                        "description": "List of feedback entries",
-                        "items": {
-                            "$ref": "#/components/schemas/responses.FeedbackResponse"
-                        },
-                        "type": "array"
-                    },
-                    "total": {
-                        "description": "Total number of feedback entries",
-                        "example": 10,
-                        "type": "integer"
-                    }
-                },
-                "type": "object"
-            },
-            "responses.FeedbackResponse": {
-                "description": "Response payload containing feedback details.",
-                "properties": {
-                    "comment": {
-                        "description": "Feedback comment text",
-                        "example": "Great service!",
-                        "type": "string"
-                    },
-                    "created_at": {
-                        "description": "Creation timestamp",
-                        "example": "2024-01-01T00:00:00Z",
-                        "type": "string"
-                    },
-                    "deleted_at": {
-                        "description": "Deletion timestamp (if deleted)",
-                        "example": "2024-01-01T00:00:00Z",
-                        "type": "string"
-                    },
-                    "id": {
-                        "description": "Feedback unique identifier",
-                        "example": "550e8400-e29b-41d4-a716-446655440000",
-                        "type": "string"
-                    },
-                    "rating": {
-                        "description": "Rating value from 1 to 5",
-                        "example": 5,
-                        "type": "integer"
-                    },
-                    "updated_at": {
-                        "description": "Last update timestamp",
-                        "example": "2024-01-01T00:00:00Z",
-                        "type": "string"
-                    }
-                },
-                "type": "object"
-            },
-            "responses.LoginUserResponse": {
-                "description": "Response payload containing authentication token and user details.",
-                "properties": {
-                    "expires_in": {
-                        "description": "Token expiration time in seconds",
-                        "example": 3600,
-                        "type": "integer"
-                    },
-                    "token": {
-                        "description": "JWT authentication token",
-                        "example": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
-                        "type": "string"
-                    }
-                },
-                "type": "object"
-            },
-            "responses.RegisterUserResponse": {
-                "description": "Response payload containing user registration details.",
-                "properties": {
-                    "created_at": {
-                        "description": "Account creation timestamp",
-                        "example": "2024-01-01T00:00:00Z",
-                        "type": "string"
-                    },
-                    "email": {
-                        "description": "User email address",
-                        "example": "user@example.com",
-                        "type": "string"
-                    },
-                    "id": {
-                        "description": "User unique identifier",
-                        "example": "550e8400-e29b-41d4-a716-446655440000",
-                        "type": "string"
-                    }
-                },
-                "type": "object"
+                "rating": {
+                    "description": "Rating value from 1 to 5 (required)",
+                    "type": "integer",
+                    "maximum": 5,
+                    "minimum": 1,
+                    "example": 5
+                }
             }
+        },
+        "requests.LoginUserRequest": {
+            "description": "Request payload for user login/authentication.",
+            "type": "object",
+            "required": [
+                "email",
+                "password"
+            ],
+            "properties": {
+                "email": {
+                    "description": "User email address (required)",
+                    "type": "string",
+                    "example": "user@example.com"
+                },
+                "password": {
+                    "description": "User password (required)",
+                    "type": "string",
+                    "example": "SecurePassword123!"
+                }
+            }
+        },
+        "requests.RegisterUserRequest": {
+            "description": "Request payload for registering a new user account.",
+            "type": "object",
+            "required": [
+                "email",
+                "password"
+            ],
+            "properties": {
+                "email": {
+                    "description": "User email address (required, must be valid email)",
+                    "type": "string",
+                    "example": "user@example.com"
+                },
+                "password": {
+                    "description": "User password (required, minimum 8 characters)",
+                    "type": "string",
+                    "minLength": 8,
+                    "example": "SecurePassword123!"
+                }
+            }
+        },
+        "responses.AnalysisDetailResponse": {
+            "description": "Response payload containing detailed analysis with topics and feedback IDs.",
+            "type": "object",
+            "properties": {
+                "analysis": {
+                    "$ref": "#/definitions/responses.AnalysisResponse"
+                },
+                "feedbacks": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/responses.FeedbackWithTopicsResponse"
+                    }
+                },
+                "topics": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/responses.TopicAnalysisResponse"
+                    }
+                }
+            }
+        },
+        "responses.AnalysisListResponse": {
+            "description": "Response payload containing a list of analyses.",
+            "type": "object",
+            "properties": {
+                "analyses": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/responses.AnalysisResponse"
+                    }
+                },
+                "total": {
+                    "type": "integer",
+                    "example": 10
+                }
+            }
+        },
+        "responses.AnalysisResponse": {
+            "description": "Response payload containing analysis details.",
+            "type": "object",
+            "properties": {
+                "analysis_duration_ms": {
+                    "type": "integer",
+                    "example": 5000
+                },
+                "completed_at": {
+                    "type": "string"
+                },
+                "created_at": {
+                    "type": "string",
+                    "example": "2024-01-01T00:00:00Z"
+                },
+                "failure_reason": {
+                    "type": "string"
+                },
+                "feedback_count": {
+                    "type": "integer",
+                    "example": 100
+                },
+                "id": {
+                    "type": "string",
+                    "example": "550e8400-e29b-41d4-a716-446655440000"
+                },
+                "key_insights": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "model": {
+                    "type": "string",
+                    "example": "gpt-5-mini"
+                },
+                "new_feedback_count": {
+                    "type": "integer"
+                },
+                "overall_summary": {
+                    "type": "string"
+                },
+                "period_end": {
+                    "type": "string",
+                    "example": "2024-01-31T23:59:59Z"
+                },
+                "period_start": {
+                    "type": "string",
+                    "example": "2024-01-01T00:00:00Z"
+                },
+                "previous_analysis_id": {
+                    "type": "string"
+                },
+                "sentiment": {
+                    "type": "string",
+                    "example": "positive"
+                },
+                "status": {
+                    "type": "string",
+                    "example": "success"
+                },
+                "tokens": {
+                    "type": "integer",
+                    "example": 5000
+                }
+            }
+        },
+        "responses.FeedbackListResponse": {
+            "description": "Response payload containing a list of feedback entries.",
+            "type": "object",
+            "properties": {
+                "feedbacks": {
+                    "description": "List of feedback entries",
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/responses.FeedbackResponse"
+                    }
+                },
+                "total": {
+                    "description": "Total number of feedback entries",
+                    "type": "integer",
+                    "example": 10
+                }
+            }
+        },
+        "responses.FeedbackResponse": {
+            "description": "Response payload containing feedback details.",
+            "type": "object",
+            "properties": {
+                "comment": {
+                    "description": "Feedback comment text",
+                    "type": "string",
+                    "example": "Great service!"
+                },
+                "created_at": {
+                    "description": "Creation timestamp",
+                    "type": "string",
+                    "example": "2024-01-01T00:00:00Z"
+                },
+                "deleted_at": {
+                    "description": "Deletion timestamp (if deleted)",
+                    "type": "string",
+                    "example": "2024-01-01T00:00:00Z"
+                },
+                "id": {
+                    "description": "Feedback unique identifier",
+                    "type": "string",
+                    "example": "550e8400-e29b-41d4-a716-446655440000"
+                },
+                "rating": {
+                    "description": "Rating value from 1 to 5",
+                    "type": "integer",
+                    "example": 5
+                },
+                "updated_at": {
+                    "description": "Last update timestamp",
+                    "type": "string",
+                    "example": "2024-01-01T00:00:00Z"
+                }
+            }
+        },
+        "responses.FeedbackWithTopicsResponse": {
+            "description": "Response payload containing feedback details with associated topics.",
+            "type": "object",
+            "properties": {
+                "comment": {
+                    "type": "string",
+                    "example": "Great service!"
+                },
+                "created_at": {
+                    "type": "string",
+                    "example": "2024-01-01T00:00:00Z"
+                },
+                "id": {
+                    "type": "string",
+                    "example": "550e8400-e29b-41d4-a716-446655440000"
+                },
+                "rating": {
+                    "type": "integer",
+                    "example": 5
+                },
+                "topics": {
+                    "description": "Topic enum values",
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                }
+            }
+        },
+        "responses.LoginUserResponse": {
+            "description": "Response payload containing authentication token and user details.",
+            "type": "object",
+            "properties": {
+                "expires_in": {
+                    "description": "Token expiration time in seconds",
+                    "type": "integer",
+                    "example": 3600
+                },
+                "token": {
+                    "description": "JWT authentication token",
+                    "type": "string",
+                    "example": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+                },
+                "user": {
+                    "description": "User information including roles",
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/responses.UserInfo"
+                        }
+                    ]
+                }
+            }
+        },
+        "responses.RegisterUserResponse": {
+            "description": "Response payload containing user registration details.",
+            "type": "object",
+            "properties": {
+                "created_at": {
+                    "description": "Account creation timestamp",
+                    "type": "string",
+                    "example": "2024-01-01T00:00:00Z"
+                },
+                "email": {
+                    "description": "User email address",
+                    "type": "string",
+                    "example": "user@example.com"
+                },
+                "id": {
+                    "description": "User unique identifier",
+                    "type": "string",
+                    "example": "550e8400-e29b-41d4-a716-446655440000"
+                }
+            }
+        },
+        "responses.TopicAnalysisResponse": {
+            "description": "Response payload containing topic analysis details.",
+            "type": "object",
+            "properties": {
+                "created_at": {
+                    "type": "string",
+                    "example": "2024-01-01T00:00:00Z"
+                },
+                "feedback_count": {
+                    "type": "integer",
+                    "example": 10
+                },
+                "id": {
+                    "type": "string",
+                    "example": "550e8400-e29b-41d4-a716-446655440000"
+                },
+                "sentiment": {
+                    "type": "string",
+                    "example": "positive"
+                },
+                "summary": {
+                    "type": "string"
+                },
+                "topic": {
+                    "type": "string",
+                    "example": "product_functionality_features"
+                },
+                "topic_name": {
+                    "type": "string",
+                    "example": "Product Functionality \u0026 Features"
+                },
+                "updated_at": {
+                    "type": "string",
+                    "example": "2024-01-01T00:00:00Z"
+                }
+            }
+        },
+        "responses.UserInfo": {
+            "description": "Basic user information.",
+            "type": "object",
+            "properties": {
+                "email": {
+                    "description": "User email address",
+                    "type": "string",
+                    "example": "user@example.com"
+                },
+                "id": {
+                    "description": "User unique identifier",
+                    "type": "string",
+                    "example": "550e8400-e29b-41d4-a716-446655440000"
+                },
+                "roles": {
+                    "description": "User roles",
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    },
+                    "example": [
+                        "[\"user\"]"
+                    ]
+                }
+            }
+        }
+    },
+    "securityDefinitions": {
+        "BearerAuth": {
+            "description": "JWT token for authentication. Use the format: \"Bearer \u003ctoken\u003e\". This follows RFC 6750 (OAuth 2.0 Bearer Token Usage).",
+            "type": "apiKey",
+            "name": "Authorization",
+            "in": "header"
         }
     }
 }`
@@ -694,8 +934,8 @@ const docTemplate = `{
 // SwaggerInfo holds exported Swagger Info so clients can modify it
 var SwaggerInfo = &swag.Spec{
 	Version:          "1.0",
-	Host:             "https://localhost:8080/api",
-	BasePath:         "",
+	Host:             "localhost:8080",
+	BasePath:         "/api",
 	Schemes:          []string{},
 	Title:            "LLM Feedback Analysis API",
 	Description:      "This is a LLM Feedback Analysis API server.",
