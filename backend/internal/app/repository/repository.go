@@ -47,6 +47,8 @@ type AnalysisRepository interface {
 	)
 	// GetLatest retrieves the latest analysis.
 	GetLatest(ctx context.Context, opts ...repository.RepoOption[Options]) (*analysis.Analysis, error)
+	// List retrieves all analyses ordered by creation date (newest first).
+	List(ctx context.Context, opts ...repository.RepoOption[Options]) ([]*analysis.Analysis, error)
 	// CreateTopicAnalysis creates a topic analysis for an analysis.
 	CreateTopicAnalysis(
 		ctx context.Context,

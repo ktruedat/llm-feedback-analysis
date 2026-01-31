@@ -20,6 +20,7 @@ type Querier interface {
 	GetFeedbackIDsByTopicID(ctx context.Context, topicID uuid.UUID) ([]uuid.UUID, error)
 	GetLatestAnalysis(ctx context.Context) (Analysis, error)
 	GetTopicsByAnalysisID(ctx context.Context, analysisID uuid.UUID) ([]Topic, error)
+	ListAnalyses(ctx context.Context) ([]Analysis, error)
 	UpdateAnalysis(ctx context.Context, arg UpdateAnalysisParams) error
 }
 
