@@ -7,6 +7,7 @@ import (
 
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/cors"
+	_ "github.com/ktruedat/llm-feedback-analysis/docs" // Import docs to register SwaggerInfo
 	"github.com/ktruedat/llm-feedback-analysis/internal/app/config"
 	"github.com/ktruedat/llm-feedback-analysis/internal/app/handlers"
 	"github.com/ktruedat/llm-feedback-analysis/internal/app/handlers/http/middleware"
@@ -14,6 +15,7 @@ import (
 	"github.com/ktruedat/llm-feedback-analysis/pkg/log"
 	"github.com/ktruedat/llm-feedback-analysis/pkg/trace"
 	"github.com/ktruedat/llm-feedback-analysis/pkg/tracelog"
+	httpSwagger "github.com/swaggo/http-swagger"
 )
 
 func New() (*App, error) {
@@ -112,6 +114,12 @@ func initRouter(cfg *config.Config, logger tracelog.TraceLogger, responder respo
 		cors.Handler(middleware.CorsOptions()),
 		middleware.JWTMiddleware(&cfg.JWT, logger, responder),
 	)
+
+	// Register Swagger UI routes
+	swaggerURL := fmt.Sprintf("http://localhost:%d/swagger/doc.json", cfg.Server.Port)
+	router.Get("/swagger/*", httpSwagger.Handler(
+		httpSwagger.URL(swaggerURL),
+	))
 
 	return router
 }

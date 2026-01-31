@@ -3,6 +3,7 @@ package middleware
 import (
 	"context"
 	"net/http"
+	"strings"
 
 	"github.com/ktruedat/llm-feedback-analysis/internal/app/config"
 	appjwt "github.com/ktruedat/llm-feedback-analysis/internal/app/infrastructure/jwt"
@@ -30,10 +31,11 @@ func JWTMiddleware(
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(
 			func(w http.ResponseWriter, r *http.Request) {
-				// Skip JWT validation for auth endpoints
+				// Skip JWT validation for auth endpoints and Swagger UI
 				path := r.URL.Path
 				if path == "/auth/register" || path == "/auth/login" ||
-					path == "/api/auth/register" || path == "/api/auth/login" {
+					path == "/api/auth/register" || path == "/api/auth/login" ||
+					strings.HasPrefix(path, "/swagger/") {
 					next.ServeHTTP(w, r)
 					return
 				}
