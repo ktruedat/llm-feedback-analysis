@@ -5,6 +5,7 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/ktruedat/llm-feedback-analysis/internal/app/transport/requests"
+	"github.com/ktruedat/llm-feedback-analysis/internal/domain/analysis"
 	"github.com/ktruedat/llm-feedback-analysis/internal/domain/feedback"
 	"github.com/ktruedat/llm-feedback-analysis/internal/domain/user"
 )
@@ -51,4 +52,22 @@ type AnalyzerService interface {
 
 	// Stop stops the analyzer service gracefully.
 	Stop(ctx context.Context) error
+}
+
+// FeedbackSummaryService defines the interface for querying analysis data.
+// This is separate from AnalyzerService which only performs the analysis.
+type FeedbackSummaryService interface {
+	// GetLatestAnalysis retrieves the latest completed analysis.
+	GetLatestAnalysis(ctx context.Context) (*analysis.Analysis, error)
+
+	// GetAllAnalyses retrieves all analyses ordered by creation date (newest first).
+	GetAllAnalyses(ctx context.Context) ([]*analysis.Analysis, error)
+
+	// GetAnalysisByID retrieves an analysis by ID with its topics and analyzed feedbacks with their topics.
+	GetAnalysisByID(ctx context.Context, analysisID uuid.UUID) (
+		*analysis.Analysis,
+		[]*analysis.TopicAnalysis,
+		map[uuid.UUID][]*analysis.TopicAnalysis, // feedback ID -> topics
+		error,
+	)
 }
