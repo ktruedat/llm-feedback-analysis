@@ -5,13 +5,13 @@ import { useRouter } from 'next/navigation';
 import { apiClient } from '@/lib/api-client';
 import { useAuthStore } from '@/store/auth-store';
 import { AdminRoute } from '@/components/AdminRoute';
-import { Feedback } from '@/types';
+import { Feedback, Analysis } from '@/types';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
 import { Alert, AlertDescription } from '@/components/ui/alert';
-import { LogOut, LayoutDashboard, Sparkles, Trash2 } from 'lucide-react';
+import { LogOut, Sparkles, Trash2, History } from 'lucide-react';
 
 interface Statistics {
   total: number;
@@ -26,15 +26,32 @@ function AdminDashboard() {
   const [statistics, setStatistics] = useState<Statistics | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [llmAnalysis, setLlmAnalysis] = useState<{
-    topics: Array<{ topic: string; count: number; examples: string[] }>;
-    summary: string;
-  } | null>(null);
-  const [isAnalyzing, setIsAnalyzing] = useState(false);
+  const [latestAnalysis, setLatestAnalysis] = useState<Analysis | null>(null);
+  const [isLoadingAnalysis, setIsLoadingAnalysis] = useState(false);
 
   useEffect(() => {
     loadFeedbacks();
+    loadLatestAnalysis();
   }, []);
+
+  const loadLatestAnalysis = async () => {
+    setIsLoadingAnalysis(true);
+    try {
+      const response = await apiClient.getLatestAnalysis();
+      // Response might be wrapped in a data property or be direct
+      const analysisData = response?.data || response;
+      if (analysisData) {
+        setLatestAnalysis(analysisData);
+      }
+    } catch (err: any) {
+      if (err.response?.status !== 204) {
+        // 204 means no analysis found, which is fine
+        console.error('Failed to load latest analysis:', err);
+      }
+    } finally {
+      setIsLoadingAnalysis(false);
+    }
+  };
 
   const loadFeedbacks = async () => {
     setIsLoading(true);
@@ -71,69 +88,6 @@ function AdminDashboard() {
     }
   };
 
-  const handleAnalyze = async () => {
-    setIsAnalyzing(true);
-    try {
-      const analysis = analyzeFeedbacks(feedbacks);
-      setLlmAnalysis(analysis);
-    } catch (err) {
-      setError('Failed to analyze feedbacks. Please try again.');
-    } finally {
-      setIsAnalyzing(false);
-    }
-  };
-
-  const analyzeFeedbacks = (feedbacks: Feedback[]) => {
-    const topics: { [key: string]: { count: number; examples: string[] } } = {};
-
-    feedbacks.forEach((feedback) => {
-      const comment = feedback.comment.toLowerCase();
-      let topic = 'General';
-
-      if (comment.includes('service') || comment.includes('staff') || comment.includes('support')) {
-        topic = 'Service Quality';
-      } else if (comment.includes('product') || comment.includes('feature')) {
-        topic = 'Product Features';
-      } else if (comment.includes('price') || comment.includes('cost') || comment.includes('expensive')) {
-        topic = 'Pricing';
-      } else if (comment.includes('bug') || comment.includes('error') || comment.includes('issue')) {
-        topic = 'Technical Issues';
-      } else if (comment.includes('fast') || comment.includes('slow') || comment.includes('speed')) {
-        topic = 'Performance';
-      }
-
-      if (!topics[topic]) {
-        topics[topic] = { count: 0, examples: [] };
-      }
-      topics[topic].count++;
-      if (topics[topic].examples.length < 3) {
-        topics[topic].examples.push(feedback.comment.substring(0, 100));
-      }
-    });
-
-    const topicArray = Object.entries(topics).map(([topic, data]) => ({
-      topic,
-      count: data.count,
-      examples: data.examples,
-    }));
-
-    const positiveCount = feedbacks.filter((f) => f.rating >= 4).length;
-    const negativeCount = feedbacks.filter((f) => f.rating <= 2).length;
-    const neutralCount = feedbacks.length - positiveCount - negativeCount;
-
-    const summary = `Analysis of ${feedbacks.length} feedback entries:
-- ${positiveCount} positive feedbacks (4-5 stars)
-- ${neutralCount} neutral feedbacks (3 stars)
-- ${negativeCount} negative feedbacks (1-2 stars)
-- Average rating: ${statistics?.averageRating.toFixed(2) || '0.00'}/5.00
-
-Key topics identified: ${topicArray.map((t) => t.topic).join(', ')}`;
-
-    return {
-      topics: topicArray,
-      summary,
-    };
-  };
 
   const handleDelete = async (id: string) => {
     if (!confirm('Are you sure you want to delete this feedback?')) {
@@ -173,6 +127,10 @@ Key topics identified: ${topicArray.map((t) => t.topic).join(', ')}`;
             <div className="flex gap-2">
               <Button variant="outline" onClick={() => router.push('/feedback')}>
                 Submit Feedback
+              </Button>
+              <Button variant="outline" onClick={() => router.push('/admin/analyses')}>
+                <History className="h-4 w-4 mr-2" />
+                Analysis History
               </Button>
               <Button variant="outline" onClick={() => { clearAuth(); router.push('/login'); }}>
                 <LogOut className="h-4 w-4 mr-2" />
@@ -238,62 +196,69 @@ Key topics identified: ${topicArray.map((t) => t.topic).join(', ')}`;
             </div>
           )}
 
-          {/* AI Analysis */}
+          {/* Latest AI Analysis */}
           <Card>
             <CardHeader>
               <div className="flex justify-between items-center">
                 <div>
-                  <CardTitle>AI Analysis</CardTitle>
-                  <CardDescription>Analyze feedback patterns and topics</CardDescription>
+                  <CardTitle>Latest AI Analysis</CardTitle>
+                  <CardDescription>Most recent analysis of feedback patterns and topics</CardDescription>
                 </div>
-                <Button
-                  onClick={handleAnalyze}
-                  disabled={isAnalyzing || feedbacks.length === 0}
-                >
-                  <Sparkles className="h-4 w-4 mr-2" />
-                  {isAnalyzing ? 'Analyzing...' : 'Run Analysis'}
+                <Button variant="outline" onClick={() => router.push('/admin/analyses')}>
+                  <History className="h-4 w-4 mr-2" />
+                  View History
                 </Button>
               </div>
             </CardHeader>
             <CardContent>
-              {llmAnalysis && (
+              {isLoadingAnalysis && (
+                <p className="text-muted-foreground text-sm">Loading analysis...</p>
+              )}
+              {!isLoadingAnalysis && latestAnalysis && (
                 <div className="space-y-6">
                   <div>
                     <h3 className="text-lg font-semibold mb-2">Summary</h3>
                     <div className="bg-muted rounded-md p-4 whitespace-pre-line text-sm">
-                      {llmAnalysis.summary}
+                      {latestAnalysis.overall_summary}
                     </div>
                   </div>
-                  <div>
-                    <h3 className="text-lg font-semibold mb-2">Topic Clustering</h3>
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                      {llmAnalysis.topics.map((topic, index) => (
-                        <Card key={index}>
-                          <CardHeader>
-                            <CardTitle className="text-base">
-                              {topic.topic} <Badge>{topic.count}</Badge>
-                            </CardTitle>
-                          </CardHeader>
-                          <CardContent>
-                            <ul className="text-sm space-y-1">
-                              {topic.examples.map((example, i) => (
-                                <li key={i} className="italic text-muted-foreground">
-                                  "{example}..."
-                                </li>
-                              ))}
-                            </ul>
-                          </CardContent>
-                        </Card>
-                      ))}
+                  <div className="flex gap-4">
+                    <div>
+                      <span className="text-sm text-muted-foreground">Sentiment: </span>
+                      <Badge variant={latestAnalysis.sentiment === 'positive' ? 'default' : latestAnalysis.sentiment === 'negative' ? 'destructive' : 'secondary'}>
+                        {latestAnalysis.sentiment}
+                      </Badge>
                     </div>
+                    <div>
+                      <span className="text-sm text-muted-foreground">Status: </span>
+                      <Badge variant={latestAnalysis.status === 'success' ? 'default' : latestAnalysis.status === 'failed' ? 'destructive' : 'secondary'}>
+                        {latestAnalysis.status}
+                      </Badge>
+                    </div>
+                    <div>
+                      <span className="text-sm text-muted-foreground">Feedbacks Analyzed: </span>
+                      <span className="font-semibold">{latestAnalysis.feedback_count}</span>
+                    </div>
+                  </div>
+                  {latestAnalysis.key_insights && latestAnalysis.key_insights.length > 0 && (
+                    <div>
+                      <h3 className="text-lg font-semibold mb-2">Key Insights</h3>
+                      <ul className="list-disc list-inside space-y-1 text-sm">
+                        {latestAnalysis.key_insights.map((insight, i) => (
+                          <li key={i}>{insight}</li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
+                  <div className="pt-4 border-t">
+                    <Button onClick={() => router.push(`/admin/analyses/${latestAnalysis.id}`)}>
+                      View Full Analysis
+                    </Button>
                   </div>
                 </div>
               )}
-              {!llmAnalysis && feedbacks.length > 0 && (
-                <p className="text-muted-foreground text-sm">Click "Run Analysis" to analyze feedback patterns.</p>
-              )}
-              {feedbacks.length === 0 && (
-                <p className="text-muted-foreground text-sm">No feedbacks available for analysis.</p>
+              {!isLoadingAnalysis && !latestAnalysis && (
+                <p className="text-muted-foreground text-sm">No analysis available yet. Analyses are generated automatically as feedbacks are submitted.</p>
               )}
             </CardContent>
           </Card>
