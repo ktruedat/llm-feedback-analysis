@@ -27,13 +27,13 @@ COMMENT ON COLUMN feedback.feedbacks.deleted_at IS 'Timestamp when the feedback 
 
 -- Indexes for common query patterns
 CREATE INDEX IF NOT EXISTS feedback_feedbacks_created_at_idx ON feedback.feedbacks (created_at DESC);
-COMMENT ON INDEX feedback.feedbacks_created_at_idx IS 'Index for querying recent feedback submissions';
+COMMENT ON INDEX feedback.feedback_feedbacks_created_at_idx IS 'Index for querying recent feedback submissions';
 
 CREATE INDEX IF NOT EXISTS feedback_feedbacks_rating_idx ON feedback.feedbacks (rating);
-COMMENT ON INDEX feedback.feedbacks_rating_idx IS 'Index for rating-based queries and statistics';
+COMMENT ON INDEX feedback.feedback_feedbacks_rating_idx IS 'Index for rating-based queries and statistics';
 
 CREATE INDEX IF NOT EXISTS feedback_feedbacks_deleted_at_idx ON feedback.feedbacks (deleted_at) WHERE deleted_at IS NULL;
-COMMENT ON INDEX feedback.feedbacks_deleted_at_idx IS 'Partial index for filtering active (non-deleted) feedback';
+COMMENT ON INDEX feedback.feedback_feedbacks_deleted_at_idx IS 'Partial index for filtering active (non-deleted) feedback';
 
 -- +goose StatementEnd
 
