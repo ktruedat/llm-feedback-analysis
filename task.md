@@ -9,26 +9,26 @@ submit feedback and provide administrators with insights through LLM-based analy
 
 Create a web page with a feedback form that includes:
 
-- Rating field: 1-5 star rating (required)
-- Comment field: Free-text feedback (required, reasonable length limit)
-- Submit button: Save feedback to database
+- [x] Rating field: 1-5 star rating (required)
+- [x] Comment field: Free-text feedback (required, reasonable length limit)
+- [x] Submit button: Save feedback to database
 
 The form should:
 
-- Validate input before submission
-- Provide user feedback on successful/failed submission
-- Have a clean, functional UI (styling is secondary to functionality)
+- [x] Validate input before submission
+- [x] Provide user feedback on successful/failed submission
+- [x] Have a clean, functional UI (styling is secondary to functionality)
 
 ## 2. Data Persistence
 
-- Store all feedback submissions in a PostgreSQL database
-- Include at minimum:
-    - Rating (1-5)
-    - Comment text
-    - Submission timestamp
-    - Unique identifier
-    - Any other fields you deem necessary
-- Ensure data integrity and proper schema design
+- [x] Store all feedback submissions in a PostgreSQL database
+- [x] Include at minimum:
+    - [x] Rating (1-5)
+    - [x] Comment text
+    - [x] Submission timestamp
+    - [x] Unique identifier
+    - [x] Any other fields you deem necessary
+- [x] Ensure data integrity and proper schema design
 
 ## 3. Admin Dashboard
 
@@ -36,87 +36,87 @@ Create an admin-only view/page that displays:
 
 **Statistics:**
 
-- Total number of feedback submissions
-- Average rating
-- Rating distribution (count per rating level)
-- Recent submissions (with timestamps)
+- [x] Total number of feedback submissions
+- [x] Average rating
+- [x] Rating distribution (count per rating level)
+- [x] Recent submissions (with timestamps)
 
 **AI Analysis:**
 
-- Topic clustering: Group feedback by common themes/topics
-- Summary: Generate overall summary of feedback trends
-- Display analysis results in a readable format
+- [x] Topic clustering: Group feedback by common themes/topics
+- [x] Summary: Generate overall summary of feedback trends
+- [x] Display analysis results in a readable format
 
 ## 4. AI Integration
 
 Implement backend integration with OpenAI API:
 
-- Use an appropriate GPT model
-- Fetch all feedback entries and send them for analysis
-- Request the LLM to:
-    - Identify common topics/themes and cluster feedback accordingly
-    - Generate a summary of overall feedback sentiment and key points
-- Handle API errors gracefully
-- Consider rate limiting and token limits
+- [x] Use an appropriate GPT model
+- [x] Fetch all feedback entries and send them for analysis
+- [x] Request the LLM to:
+    - [x] Identify common topics/themes and cluster feedback accordingly
+    - [x] Generate a summary of overall feedback sentiment and key points
+- [x] Handle API errors gracefully
+- [x] Consider rate limiting and token limits
 
 ## 5. Access Control
 
-- Regular users should only access the feedback submission form
-- Admin dashboard must be protected
-- Implement authentication/authorization mechanism of your choice:
-    - HTTP Basic Auth
-    - Simple login with session/JWT
-    - Environment-based secret token
-    - Or any other approach you prefer
-- Document how to access admin mode
+- [x] Regular users should only access the feedback submission form
+- [x] Admin dashboard must be protected
+- [x] Implement authentication/authorization mechanism of your choice:
+    - [x] HTTP Basic Auth
+    - [x] Simple login with session/JWT
+    - [x] Environment-based secret token
+    - [x] Or any other approach you prefer
+- [x] Document how to access admin mode
 
 # Technical Requirements
 
 ## Language and Framework
 
-- Backend: Go (required)
-- Database: PostgreSQL (required)
-- Frontend: Any approach (plain HTML/CSS/JS, htmx, Templ, or any framework you prefer)
-- LLM: OpenAI API (appropriate GPT model)
+- [x] Backend: Go (required)
+- [x] Database: PostgreSQL (required)
+- [x] Frontend: Any approach (plain HTML/CSS/JS, htmx, Templ, or any framework you prefer)
+- [x] LLM: OpenAI API (appropriate GPT model)
 
 ## Code Quality
 
-- Clean, readable, and maintainable code
-- Proper error handling
-- Appropriate use of Go idioms and best practices
-- Reasonable project structure
+- [x] Clean, readable, and maintainable code
+- [x] Proper error handling
+- [x] Appropriate use of Go idioms and best practices
+- [x] Reasonable project structure
 
 ## Configuration
 
-- Externalize configuration (database connection, OpenAI API key, etc.)
-- Support configuration via environment variables or config file
-- Document all required configuration
+- [x] Externalize configuration (database connection, OpenAI API key, etc.)
+- [x] Support configuration via environment variables or config file
+- [x] Document all required configuration
 
 # Deliverables
 
 ## Source Code
 
-- Complete, working application
-- Clear project structure
-- Include .gitignore
+- [x] Complete, working application
+- [x] Clear project structure
+- [x] Include .gitignore
 
 ## README.md
 
-- Setup instructions
-- How to run the application
-- How to access admin mode
-- Required environment variables/configuration
-- Any assumptions or design decisions
+- [x] Setup instructions
+- [x] How to run the application
+- [x] How to access admin mode
+- [x] Required environment variables/configuration
+- [x] Any assumptions or design decisions
 
 ## Database Schema
 
-- Schema definition (SQL file, migration, or documented in README)
-- Clear explanation of your data model
+- [x] Schema definition (SQL file, migration, or documented in README)
+- [x] Clear explanation of your data model
 
 ## Dependencies
 
-- go.mod and go.sum files
-- Instructions for installing any additional dependencies
+- [x] go.mod and go.sum files
+- [x] Instructions for installing any additional dependencies
 
 # Evaluation Focus
 
@@ -145,9 +145,9 @@ do differently with more time.
 
 If you have extra time and want to showcase additional skills:
 
-- Docker/docker-compose setup
-- Tests (unit or integration)
-- Caching of AI analysis results
-- Pagination for admin dashboard
-- Advanced UI/UX
-- API documentation
+- [x] Docker/docker-compose setup
+- [ ] Tests (unit or integration)
+- [x] Caching of AI analysis results
+- [x] Pagination for admin dashboard
+- [x] Advanced UI/UX
+- [x] API documentation
