@@ -43,7 +43,7 @@ llm_analysis:
   debounce_minutes: 1
   # Maximum tokens per request (for context window management and rate limiting)
   max_tokens_per_request: 5000
-  # OpenAI model to use (e.g., gpt-4o, gpt-5, gpt-5-mini)
+  # OpenAI model to use (e.g., gpt-4o, gpt-5, gpt-5-mini, see https://platform.openai.com/docs/models)
   openai_model: "gpt-5-mini-2025-08-07"
   # OpenAI API key
   # It is set via LLM_ANALYSIS_OPENAI_API_KEY environment variable and shouldn't be commited to version control.

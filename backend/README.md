@@ -8,10 +8,11 @@
 4. [Layer Breakdown](#layer-breakdown)
 5. [Key Technologies & Tools](#key-technologies--tools)
 6. [Database Migrations](#database-migrations)
-7. [Configuration](#configuration)
-8. [Security Considerations](#security-considerations)
-9. [Getting Started](#getting-started)
-10. [API Documentation](#api-documentation)
+7. [LLM Analysis Design Decisions](#llm-analysis-design-decisions)
+8. [Configuration](#configuration)
+9. [Security Considerations](#security-considerations)
+10. [Getting Started](#getting-started)
+11. [API Documentation](#api-documentation)
 
 ---
 
@@ -542,6 +543,602 @@ SQLC needs to **analyze your database schema** to generate type-safe code:
 - Validates that your queries are correct
 
 Without migrations defining the schema, SQLC can't do its job.
+
+---
+
+## LLM Analysis Design Decisions
+
+### Overview
+
+The AI analysis system is designed to provide **contextual, incremental insights** into user feedback over time. Rather than analyzing all feedback from scratch with each new submission, the system maintains **historical context** while processing new feedback in **manageable batches**.
+
+This approach balances:
+- **AI quality** - Enough context for meaningful insights
+- **Cost efficiency** - Controlled API usage and token limits
+- **Scalability** - Can handle thousands of feedbacks without exponential costs
+- **Reliability** - Fault-tolerant design with tracking for potential retries
+
+### Database Schema Design
+
+The analysis system uses **four related tables** to track the complete analysis lifecycle:
+
+#### 1. `analyses` Table - Analysis Metadata
+
+**Purpose**: Stores high-level analysis results and overall insights
+
+**Structure**:
+```sql
+CREATE TABLE feedback.analyses (
+    id                         UUID PRIMARY KEY,
+    overall_sentiment          feedback.sentiment_enum NOT NULL,
+    summary                    TEXT NOT NULL,
+    total_feedbacks_analyzed   INTEGER NOT NULL,
+    analysis_timestamp         TIMESTAMP NOT NULL,
+    created_at                 TIMESTAMP NOT NULL
+);
+```
+
+**Why this structure:**
+- `overall_sentiment` - Aggregate sentiment across all analyzed feedbacks (positive/neutral/negative)
+- `summary` - LLM-generated overview of feedback trends and key insights
+- `total_feedbacks_analyzed` - Count of feedbacks included in this analysis
+- `analysis_timestamp` - When the analysis was performed (distinct from `created_at` for audit)
+
+**Design rationale:**
+- Provides a **snapshot in time** of feedback state
+- Allows tracking **how sentiment evolves** over multiple analyses
+- Enables **historical comparison** - "How did sentiment change from last week?"
+- Separates analysis metadata from topic-level details
+
+#### 2. `topic_analyses` Table - Topic Clustering Results
+
+**Purpose**: Breaks down each analysis into specific topics identified by the LLM
+
+**Structure**:
+```sql
+CREATE TABLE feedback.topic_analyses (
+    id              UUID PRIMARY KEY,
+    analysis_id     UUID NOT NULL REFERENCES feedback.analyses(id),
+    topic           feedback.topic_enum NOT NULL,
+    sentiment       feedback.sentiment_enum NOT NULL,
+    feedback_count  INTEGER NOT NULL,
+    summary         TEXT NOT NULL,
+    feedback_ids    UUID[] NOT NULL,
+    created_at      TIMESTAMP NOT NULL
+);
+```
+
+**Why this structure:**
+- `analysis_id` - Links to parent analysis (one-to-many relationship)
+- `topic` - Category identified by LLM (e.g., Performance, UI/UX, Bugs, Features)
+- `sentiment` - Sentiment **specific to this topic** (may differ from overall)
+- `feedback_count` - Number of feedbacks categorized under this topic
+- `summary` - LLM-generated summary for this specific topic
+- `feedback_ids` - Array of feedback UUIDs assigned to this topic
+
+**Design rationale:**
+- **Topic-level granularity** - Sentiment may be positive for "UI/UX" but negative for "Performance"
+- **Drill-down capability** - Admins can click a topic to see associated feedbacks
+- **Flexible categorization** - One feedback can appear in multiple topics (via `feedback_ids` array)
+- **Summary per topic** - Detailed insights for each theme
+
+#### 3. `feedback_analysis_assignments` Table - Analysis Tracking
+
+**Purpose**: Maps which feedbacks were included in which analyses
+
+**Structure**:
+```sql
+CREATE TABLE feedback.feedback_analysis_assignments (
+    id          UUID PRIMARY KEY,
+    feedback_id UUID NOT NULL REFERENCES feedback.feedbacks(id),
+    analysis_id UUID NOT NULL REFERENCES feedback.analyses(id),
+    created_at  TIMESTAMP NOT NULL,
+    UNIQUE(feedback_id, analysis_id)
+);
+```
+
+**Why this table exists:**
+
+This is a **critical reliability feature** that solves several problems:
+
+1. **Tracking analyzed feedbacks**: Maintains a record of which feedbacks were included in each analysis
+2. **Network partition recovery**: If the analyzer crashes after calling OpenAI but before saving results, we can identify:
+   - Feedbacks that were sent to the LLM
+   - Results that were never persisted
+   - Which feedbacks need to be reanalyzed
+3. **Retry logic foundation**: Enables future enhancement:
+   ```sql
+   -- Find feedbacks that weren't successfully analyzed
+   SELECT f.* FROM feedback.feedbacks f
+   WHERE f.analyzed = true  -- Marked as analyzed
+   AND NOT EXISTS (
+       SELECT 1 FROM feedback.feedback_analysis_assignments faa
+       WHERE faa.feedback_id = f.id
+   );  -- But not in any analysis assignment
+   ```
+4. **Audit trail**: Complete history of which feedbacks were analyzed together
+5. **Analysis reproducibility**: Can recreate the exact set of feedbacks used in any analysis
+
+**Future improvement potential:**
+While the current system doesn't implement automatic retry logic, this table provides the foundation for:
+- Detecting incomplete analyses
+- Reanalyzing feedbacks that failed due to transient errors
+- Validating analysis completeness at service startup
+- Recovering from crashes or network failures
+
+**Design rationale:**
+- **Idempotency support** - Prevent duplicate analysis of same feedbacks
+- **Fault tolerance** - System can recover gracefully from failures
+- **Debugging** - Can trace exactly what was analyzed when
+- **Many-to-many relationship** - Feedbacks can theoretically be reanalyzed in future iterations
+
+#### 4. `feedback_topic_assignments` Table - Topic-Feedback Mapping
+
+**Purpose**: Explicitly maps which feedbacks belong to which topics
+
+**Structure**:
+```sql
+CREATE TABLE feedback.feedback_topic_assignments (
+    id              UUID PRIMARY KEY,
+    feedback_id     UUID NOT NULL REFERENCES feedback.feedbacks(id),
+    topic_analysis_id UUID NOT NULL REFERENCES feedback.topic_analyses(id),
+    created_at      TIMESTAMP NOT NULL,
+    UNIQUE(feedback_id, topic_analysis_id)
+);
+```
+
+**Why this table exists:**
+
+While `topic_analyses.feedback_ids` stores feedback UUIDs in an array, this table provides:
+
+1. **Efficient querying**: 
+   ```sql
+   -- Get all feedbacks for a topic (indexed query)
+   SELECT f.* FROM feedback.feedbacks f
+   JOIN feedback.feedback_topic_assignments fta ON f.id = fta.feedback_id
+   WHERE fta.topic_analysis_id = 'topic-uuid';
+   ```
+   vs. array scanning: `WHERE 'feedback-uuid' = ANY(feedback_ids)` (slower)
+
+2. **Reverse lookups**: Find all topics a feedback belongs to
+   ```sql
+   SELECT ta.* FROM feedback.topic_analyses ta
+   JOIN feedback.feedback_topic_assignments fta ON ta.id = fta.topic_analysis_id
+   WHERE fta.feedback_id = 'feedback-uuid';
+   ```
+
+3. **Database normalization**: Follows relational database best practices
+4. **Indexing capability**: Can create indexes on both `feedback_id` and `topic_analysis_id`
+5. **Statistics**: Easy to count assignments, detect overlaps, etc.
+
+**Design rationale:**
+- **Performance** - Faster joins than array operations
+- **Scalability** - Handles thousands of feedbacks efficiently
+- **Flexibility** - Easy to add metadata (e.g., confidence scores) later
+- **Standard relational pattern** - Many-to-many relationship via junction table
+
+### Incremental Analysis with Historical Context
+
+#### The Challenge: Infinite Feedback History
+
+As feedback accumulates over time, we face a **token limit problem**:
+- With 100,000 feedbacks, we can't send all to the LLM each time
+- OpenAI has context window limits (e.g., 128K tokens for GPT-4)
+- Cost scales linearly with tokens sent
+- Processing time increases dramatically
+
+**Naive approach (doesn't scale):**
+```
+Analysis 1: Analyze feedbacks 1-7
+Analysis 2: Analyze feedbacks 1-14 (regenerate everything)
+Analysis 3: Analyze feedbacks 1-21 (regenerate everything)
+...
+Analysis 100: Analyze feedbacks 1-700 (700 feedbacks × 200 tokens = 140K tokens!)
+```
+
+#### Our Solution: Aggregation with Context Preservation
+
+Instead, we use **incremental analysis** with **historical summary context**:
+
+```
+Analysis 1: 
+  - New feedbacks: 1-7
+  - Previous context: None
+  - Output: Summary + topics
+
+Analysis 2:
+  - New feedbacks: 8-14
+  - Previous context: Summary from Analysis 1
+  - Output: Updated summary + topics (considers previous trends)
+
+Analysis 3:
+  - New feedbacks: 15-21
+  - Previous context: Summary from Analysis 2
+  - Output: Updated summary + topics (builds on previous insights)
+```
+
+**How it works:**
+
+1. **Fetch latest analysis**: Retrieve the most recent `analyses.summary` and `topic_analyses`
+2. **Provide context to LLM**: Include previous summary in the prompt:
+   ```
+   Previous analysis summary:
+   - Overall sentiment: Positive
+   - Key topics: Performance (negative), UI (positive), Features (neutral)
+   - Summary: Users appreciate UI improvements but report performance issues...
+   
+   New feedbacks to analyze (7 new submissions):
+   1. "Still seeing memory leaks..." (rating: 2)
+   2. "Love the new dashboard!" (rating: 5)
+   ...
+   ```
+
+3. **LLM generates updated analysis**: 
+   - Considers both previous trends and new feedback
+   - Can identify if sentiment is improving/declining
+   - Detects new emerging topics
+   - Updates existing topic summaries
+
+4. **Save new analysis**: Store as separate analysis record (preserves history)
+
+**Benefits:**
+- ✅ **Bounded token usage** - Only send ~7-50 feedbacks per analysis + previous summary
+- ✅ **Historical awareness** - LLM understands overall trends
+- ✅ **Cost efficient** - Linear cost growth instead of exponential
+- ✅ **Scalable** - Works with millions of feedbacks
+- ✅ **Traceable** - Complete analysis history preserved
+
+**Configuration:**
+```yaml
+llm_analysis:
+  min_new_feedbacks_for_analysis: 7    # Batch size for new feedbacks
+  max_feedbacks_in_context: 50         # Upper limit per analysis
+```
+
+### Analysis Workflow Example
+
+**Scenario**: 14 feedbacks submitted over time
+
+**First Analysis (feedbacks 1-7):**
+```sql
+-- What gets saved:
+INSERT INTO analyses (overall_sentiment, summary, total_feedbacks_analyzed)
+VALUES ('negative', 'Users report performance issues...', 7);
+
+INSERT INTO topic_analyses (analysis_id, topic, sentiment, summary, feedback_ids)
+VALUES 
+  (analysis_id, 'Performance', 'negative', 'Memory leaks and crashes...', ARRAY[uuid1, uuid2, uuid3]),
+  (analysis_id, 'UI', 'positive', 'Users love the new design...', ARRAY[uuid4, uuid5]);
+
+INSERT INTO feedback_analysis_assignments (feedback_id, analysis_id)
+VALUES (uuid1, analysis_id), (uuid2, analysis_id), ...; -- 7 rows
+
+INSERT INTO feedback_topic_assignments (feedback_id, topic_analysis_id)
+VALUES 
+  (uuid1, topic_perf_id),  -- Feedback 1 → Performance topic
+  (uuid2, topic_perf_id),  -- Feedback 2 → Performance topic
+  (uuid4, topic_ui_id);    -- Feedback 4 → UI topic
+```
+
+**Second Analysis (feedbacks 8-14):**
+```sql
+-- Analyzer retrieves:
+SELECT summary, overall_sentiment FROM analyses 
+ORDER BY analysis_timestamp DESC LIMIT 1;
+-- Result: "Users report performance issues..." + 'negative'
+
+-- Sends to LLM:
+{
+  "previous_analysis": {
+    "sentiment": "negative",
+    "summary": "Users report performance issues...",
+    "topics": ["Performance (negative)", "UI (positive)"]
+  },
+  "new_feedbacks": [
+    {"rating": 4, "comment": "Performance is better now!"},
+    {"rating": 5, "comment": "Loving the improvements"},
+    ...
+  ]
+}
+
+-- LLM responds:
+{
+  "overall_sentiment": "positive",  // Changed from negative!
+  "summary": "Sentiment has improved. Earlier performance issues appear resolved...",
+  "topics": [
+    {
+      "name": "Performance",
+      "sentiment": "positive",  // Was negative, now positive
+      "summary": "Users report performance improvements..."
+    },
+    {
+      "name": "UI",
+      "sentiment": "positive",
+      "summary": "Continued positive feedback on design..."
+    }
+  ]
+}
+
+-- Saves new analysis (separate record)
+INSERT INTO analyses (...) VALUES (...);  // New UUID, new timestamp
+```
+
+### Why This Design Works
+
+**Problem**: How to analyze thousands of feedbacks without exponential costs?
+
+**Solution**: Incremental aggregation with context propagation
+
+**Key insights:**
+
+1. **Summaries compress information**: 
+   - 7 feedbacks (1,400 tokens) → Summary (200 tokens)
+   - Previous context stays bounded (~200-500 tokens)
+   - New feedbacks vary (7-50 × ~200 tokens)
+   - Total: ~1,500-10,500 tokens per analysis (manageable)
+
+2. **LLMs are good at synthesis**:
+   - Can integrate new information with previous summary
+   - Detect trends (improving vs. declining)
+   - Update topic sentiments based on new data
+
+3. **Historical preservation**:
+   - Each analysis is immutable (never overwritten)
+   - Can track sentiment evolution: negative → neutral → positive
+   - Audit trail of how feedback changed over time
+
+4. **Fault tolerance**:
+   - `feedback_analysis_assignments` tracks what was analyzed
+   - Can detect and recover from incomplete analyses
+   - Foundation for retry logic
+
+5. **Query flexibility**:
+   - `feedback_topic_assignments` enables efficient topic drilling
+   - Can show "all feedbacks about Performance"
+   - Can show "all topics a specific feedback belongs to"
+
+### Future Enhancements
+
+While not currently implemented, the schema supports:
+
+**1. Analyze orphaned feedbacks:**
+```sql
+-- At service startup, check for orphaned feedbacks
+SELECT f.id FROM feedback.feedbacks f
+WHERE f.analyzed = true
+AND NOT EXISTS (
+    SELECT 1 FROM feedback.feedback_analysis_assignments faa
+    WHERE faa.feedback_id = f.id
+);
+-- Re-analyze these feedbacks
+```
+
+**2. Partial failure recovery:**
+- If OpenAI call succeeds but database save fails
+- Mark feedbacks as "pending reanalysis"
+- Retry on next analyzer cycle
+
+**3. Analysis versioning:**
+- Store multiple analyses for same feedbacks
+- Compare LLM performance over time
+- A/B test different prompts
+
+**4. Confidence scores:**
+- Add `confidence` column to `feedback_topic_assignments`
+- Track how certain LLM is about topic assignment
+- Filter low-confidence assignments
+
+**5. Time-series analysis:**
+- Query analyses by date range
+- Generate trend graphs (sentiment over weeks/months)
+- Detect sudden sentiment shifts
+
+### Summary
+
+The analysis table design reflects careful consideration of:
+- **Scalability** - Handle thousands of feedbacks efficiently
+- **Cost management** - Bounded token usage via aggregation
+- **Reliability** - Track and recover from failures
+- **Context preservation** - Maintain historical awareness
+- **Query performance** - Efficient topic and feedback lookups
+- **Future extensibility** - Foundation for advanced features
+
+This architecture enables **high-quality AI insights** without exponential costs or complexity as the feedback database grows.
+
+### Model Selection: GPT-5 Mini
+
+**Model Used**: `gpt-5-mini-2025-08-07`
+
+**Why GPT-5 Mini?**
+
+For this feedback analysis use case, we selected GPT-5 Mini for several strategic reasons:
+
+#### 1. **Token Efficiency** - Primary Driver
+
+GPT-5 Mini is specifically optimized for cost-efficient text processing:
+- **Input tokens**: $0.25 per 1M tokens (10x cheaper than GPT-5)
+- **Cached input**: $0.025 per 1M tokens (100x cheaper for repeated context)
+- **Output tokens**: $2.00 per 1M tokens
+
+For our incremental analysis workflow:
+```
+Typical analysis request:
+- Previous summary (cached): ~300 tokens × $0.025/1M = negligible
+- New feedbacks: 7-50 feedbacks × 200 tokens = 1,400-10,000 tokens × $0.25/1M = $0.0003-$0.0025
+- Response: ~500 tokens × $2.00/1M = $0.001
+
+Total per analysis: ~$0.001-$0.003 (sub-cent cost)
+```
+
+With GPT-5 standard, costs would be **10x higher** for the same analysis quality.
+
+#### 2. **Sufficient Capabilities for Text Analysis**
+
+Our task is **structured text interpretation**, not heavy reasoning:
+- ✅ **Categorization** - Assign feedbacks to predefined topics
+- ✅ **Summarization** - Generate concise summaries of feedback themes
+- ✅ **Sentiment analysis** - Determine positive/negative/mixed sentiment
+- ✅ **Pattern recognition** - Identify common complaints or praise
+
+We **don't need**:
+- ❌ Complex multi-step reasoning
+- ❌ Advanced code generation
+- ❌ Mathematical problem solving
+- ❌ Long-form content creation
+
+GPT-5 Mini excels at these well-defined text analysis tasks, making it the perfect fit.
+
+#### 3. **Speed**
+
+GPT-5 Mini is marked as "Fast" in OpenAI's model lineup:
+- Faster response times than full GPT-5
+- Reduces latency in async analysis workflow
+- Enables quicker feedback analysis cycles
+
+#### 4. **Large Context Window**
+
+Despite being "mini", it offers:
+- **400,000 token context window** - More than enough for our bounded analysis batches
+- **128,000 max output tokens** - Far exceeds our typical 500-token summaries
+
+Our typical usage:
+- Context needed: ~1,500-10,500 tokens per analysis
+- Context available: 400,000 tokens
+- **Headroom**: 40-260x more than needed
+
+#### 5. **Modern Knowledge**
+
+- **Knowledge cutoff**: May 31, 2024
+- **Reasoning token support**: Available for enhanced analysis if needed
+- Up-to-date with latest capabilities
+
+#### Model Configuration Flexibility
+
+While GPT-5 Mini is the **default** for optimal cost/performance, the system is **fully configurable**:
+
+**To use a different model**, update `config.yaml`:
+```yaml
+llm_analysis:
+  openai_model: "gpt-4o"  # or any supported OpenAI model
+```
+
+**Reference**: See [OpenAI Models Documentation](https://platform.openai.com/docs/models/gpt-5-mini) for latest pricing and capabilities.
+
+#### OpenAI API Integration: Structured Outputs & Responses API
+
+Our integration with OpenAI leverages two key technologies for **reliability and performance**:
+
+##### 1. Structured Outputs
+
+We use OpenAI's [Structured Outputs](https://platform.openai.com/docs/guides/structured-outputs) feature to enforce a strict JSON schema on the LLM's response.
+
+**How it works**:
+```go
+// schema.go - Define expected structure
+requestBody := Map{
+    "model": c.model,
+    "input": [...],
+    "text": Map{
+        "format": Map{
+            "type":   "json_schema",
+            "name":   "feedback_analysis",
+            "strict": true,  // Enforces schema compliance
+            "schema": AnalysisSchema(),  // Predefined structure
+        },
+    },
+}
+```
+
+**Benefits**:
+- ✅ **Guaranteed format** - Every response matches our expected structure
+- ✅ **No parsing errors** - JSON is always valid and schema-compliant
+- ✅ **Type safety** - Fields are always present with correct types
+- ✅ **No retry logic needed** - First response is always usable
+- ✅ **Reduced latency** - No need to validate or re-request
+
+**Schema definition** (see `internal/app/external/llm/schema.go`):
+```json
+{
+  "overall_summary": "string",
+  "sentiment": "positive" | "mixed" | "negative",
+  "key_insights": ["string"],
+  "topics": [
+    {
+      "topic_enum": "product_functionality_features" | ...,
+      "summary": "string",
+      "feedback_ids": ["uuid"],
+      "sentiment": "positive" | "mixed" | "negative"
+    }
+  ]
+}
+```
+
+**Why this matters**:
+- Traditional LLM integrations often get malformed JSON, requiring retry logic
+- Structured Outputs **guarantees** valid, schema-compliant responses
+- Eliminates an entire class of integration bugs
+- Makes the system more reliable and predictable
+
+##### 2. Responses API (Synchronous)
+
+We use OpenAI's [Responses API](https://platform.openai.com/docs/api-reference/responses).
+
+**Key characteristics**:
+- **Synchronous**: Single HTTP request, get complete response immediately
+- **No streaming**: Results returned in one payload when processing completes
+- **Simpler integration**: No need to handle server-sent events or partial responses
+- **Reliable**: Either succeeds with full response or fails with clear error
+
+**API endpoint**:
+```
+POST https://api.openai.com/v1/responses
+```
+
+**Request structure**:
+```go
+// openai.go - Make synchronous request
+httpReq, err := http.NewRequestWithContext(
+    ctx,
+    "POST",
+    "https://api.openai.com/v1/responses",
+    bytes.NewReader(requestBody),
+)
+```
+
+**Perfect for our use case**:
+- Analysis is **async background job** - don't need real-time streaming
+- Want complete results in one response
+- Simpler code, fewer edge cases
+- Standard HTTP client
+
+**Full integration flow**:
+```
+1. Build JSON payload with feedbacks + previous analysis
+2. POST to /v1/responses with structured output schema
+3. Wait for complete response (typically 2-3 seconds)
+4. Parse guaranteed-valid JSON
+5. Save to database
+```
+
+**Error handling**:
+- HTTP errors (rate limits, auth, etc.) → Retry with backoff
+- API errors (invalid request) → Log and skip analysis
+- Schema violations → **Impossible** (structured outputs guarantee compliance)
+
+**Reference**: See [OpenAI Structured Outputs Guide](https://platform.openai.com/docs/guides/structured-outputs) and [Responses API Documentation](https://platform.openai.com/docs/api-reference/responses) for full details.
+
+#### Performance Validation
+
+In practice, GPT-5 Mini has proven to be:
+- ✅ Accurate at categorizing feedbacks into predefined topics
+- ✅ Consistent in sentiment analysis
+- ✅ Capable of generating coherent, useful summaries
+- ✅ Reliable in handling batch analysis workflows
+- ✅ Fast for real-time analysis needs
+
+**Note**: GPT-5 Nano could be also used, but it has lower capabilities and may struggle with nuanced text analysis. GPT-5 Mini strikes the right balance.
+
+**Conclusion**: GPT-5 Mini is the **optimal choice** for this use case—delivering high-quality text analysis at a fraction of the cost and with faster response times. The model can be easily swapped if requirements change, but for feedback analysis, it's hard to beat.
 
 ---
 
