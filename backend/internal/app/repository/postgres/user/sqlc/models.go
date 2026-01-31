@@ -134,6 +134,98 @@ func AllFeedbackSentimentValues() []FeedbackSentiment {
 	}
 }
 
+// Predefined business topics for categorizing feedback
+type FeedbackTopicEnum string
+
+const (
+	FeedbackTopicEnumProductFunctionalityFeatures     FeedbackTopicEnum = "product_functionality_features"
+	FeedbackTopicEnumUiUx                             FeedbackTopicEnum = "ui_ux"
+	FeedbackTopicEnumPerformanceReliability           FeedbackTopicEnum = "performance_reliability"
+	FeedbackTopicEnumUsabilityProductivity            FeedbackTopicEnum = "usability_productivity"
+	FeedbackTopicEnumSecurityPrivacy                  FeedbackTopicEnum = "security_privacy"
+	FeedbackTopicEnumCompatibilityIntegration         FeedbackTopicEnum = "compatibility_integration"
+	FeedbackTopicEnumDeveloperExperience              FeedbackTopicEnum = "developer_experience"
+	FeedbackTopicEnumPricingLicensing                 FeedbackTopicEnum = "pricing_licensing"
+	FeedbackTopicEnumCustomerSupportCommunity         FeedbackTopicEnum = "customer_support_community"
+	FeedbackTopicEnumInstallationSetupDeployment      FeedbackTopicEnum = "installation_setup_deployment"
+	FeedbackTopicEnumDataAnalyticsReporting           FeedbackTopicEnum = "data_analytics_reporting"
+	FeedbackTopicEnumLocalizationInternationalization FeedbackTopicEnum = "localization_internationalization"
+	FeedbackTopicEnumProductStrategyRoadmap           FeedbackTopicEnum = "product_strategy_roadmap"
+)
+
+func (e *FeedbackTopicEnum) Scan(src interface{}) error {
+	switch s := src.(type) {
+	case []byte:
+		*e = FeedbackTopicEnum(s)
+	case string:
+		*e = FeedbackTopicEnum(s)
+	default:
+		return fmt.Errorf("unsupported scan type for FeedbackTopicEnum: %T", src)
+	}
+	return nil
+}
+
+type NullFeedbackTopicEnum struct {
+	FeedbackTopicEnum FeedbackTopicEnum
+	Valid             bool // Valid is true if FeedbackTopicEnum is not NULL
+}
+
+// Scan implements the Scanner interface.
+func (ns *NullFeedbackTopicEnum) Scan(value interface{}) error {
+	if value == nil {
+		ns.FeedbackTopicEnum, ns.Valid = "", false
+		return nil
+	}
+	ns.Valid = true
+	return ns.FeedbackTopicEnum.Scan(value)
+}
+
+// Value implements the driver Valuer interface.
+func (ns NullFeedbackTopicEnum) Value() (driver.Value, error) {
+	if !ns.Valid {
+		return nil, nil
+	}
+	return string(ns.FeedbackTopicEnum), nil
+}
+
+func (e FeedbackTopicEnum) Valid() bool {
+	switch e {
+	case FeedbackTopicEnumProductFunctionalityFeatures,
+		FeedbackTopicEnumUiUx,
+		FeedbackTopicEnumPerformanceReliability,
+		FeedbackTopicEnumUsabilityProductivity,
+		FeedbackTopicEnumSecurityPrivacy,
+		FeedbackTopicEnumCompatibilityIntegration,
+		FeedbackTopicEnumDeveloperExperience,
+		FeedbackTopicEnumPricingLicensing,
+		FeedbackTopicEnumCustomerSupportCommunity,
+		FeedbackTopicEnumInstallationSetupDeployment,
+		FeedbackTopicEnumDataAnalyticsReporting,
+		FeedbackTopicEnumLocalizationInternationalization,
+		FeedbackTopicEnumProductStrategyRoadmap:
+		return true
+	}
+	return false
+}
+
+func AllFeedbackTopicEnumValues() []FeedbackTopicEnum {
+	return []FeedbackTopicEnum{
+		FeedbackTopicEnumProductFunctionalityFeatures,
+		FeedbackTopicEnumUiUx,
+		FeedbackTopicEnumPerformanceReliability,
+		FeedbackTopicEnumUsabilityProductivity,
+		FeedbackTopicEnumSecurityPrivacy,
+		FeedbackTopicEnumCompatibilityIntegration,
+		FeedbackTopicEnumDeveloperExperience,
+		FeedbackTopicEnumPricingLicensing,
+		FeedbackTopicEnumCustomerSupportCommunity,
+		FeedbackTopicEnumInstallationSetupDeployment,
+		FeedbackTopicEnumDataAnalyticsReporting,
+		FeedbackTopicEnumLocalizationInternationalization,
+		FeedbackTopicEnumProductStrategyRoadmap,
+	}
+}
+
 // Stores snapshots of AI analysis at different points in time
 type FeedbackAnalysis struct {
 	// Unique identifier for the analysis
@@ -176,16 +268,16 @@ type FeedbackAnalysisTopic struct {
 	ID uuid.UUID `db:"id"`
 	// Reference to the analysis this topic belongs to
 	AnalysisID uuid.UUID `db:"analysis_id"`
-	// Name of the topic (e.g., Mobile App Crashes)
-	TopicName string `db:"topic_name"`
-	// AI-generated explanation of this topic
-	Description string `db:"description"`
 	// Number of feedbacks belonging to this topic
 	FeedbackCount int32 `db:"feedback_count"`
 	// Sentiment for this topic (positive/mixed/negative)
 	Sentiment FeedbackSentiment `db:"sentiment"`
 	CreatedAt time.Time         `db:"created_at"`
 	UpdatedAt time.Time         `db:"updated_at"`
+	// Predefined topic enum value
+	TopicEnum FeedbackTopicEnum `db:"topic_enum"`
+	// Summary of the analysis for this topic
+	Summary string `db:"summary"`
 }
 
 // Maps feedbacks to analyses (many-to-many relationship)

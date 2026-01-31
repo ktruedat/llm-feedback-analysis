@@ -15,21 +15,21 @@ func (r *repo) GetTopicsByAnalysisID(
 	ctx context.Context,
 	analysisID uuid.UUID,
 	opts ...repository.RepoOption[apprepo.Options],
-) ([]*analysis.Topic, error) {
+) ([]*analysis.TopicAnalysis, error) {
 	q := utils.GetQuerier(opts, r.defaultQuerier)
 	queries := newSQLCQueries(q)
 
 	sqlcTopics, err := queries.GetTopicsByAnalysisID(ctx, analysisID)
 	if err != nil {
-		return nil, fmt.Errorf("failed to get topics by analysis ID: %w", err)
+		return nil, fmt.Errorf("failed to get topic analyses by analysis ID: %w", err)
 	}
 
-	topics := make([]*analysis.Topic, len(sqlcTopics))
+	topicAnalyses := make([]*analysis.TopicAnalysis, len(sqlcTopics))
 	for i, sqlcTopic := range sqlcTopics {
-		topics[i] = mapSQLCTopicToDomain(sqlcTopic)
+		topicAnalyses[i] = mapSQLCTopicToDomain(sqlcTopic)
 	}
 
-	return topics, nil
+	return topicAnalyses, nil
 }
 
 func (r *repo) GetFeedbackIDsByTopicID(

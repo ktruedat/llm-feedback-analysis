@@ -11,28 +11,27 @@ import (
 	"github.com/ktruedat/llm-feedback-analysis/pkg/repository/sql/utils"
 )
 
-func (r *repo) CreateTopic(
+func (r *repo) CreateTopicAnalysis(
 	ctx context.Context,
-	topic *analysis.Topic,
+	topicAnalysis *analysis.TopicAnalysis,
 	opts ...repository.RepoOption[apprepo.Options],
 ) error {
 	q := utils.GetQuerier(opts, r.defaultQuerier)
 	queries := newSQLCQueries(q)
 
-	_, err := queries.CreateTopic(
-		ctx, sqlc.CreateTopicParams{
-			ID:            topic.ID(),
-			AnalysisID:    topic.AnalysisID(),
-			TopicName:     topic.TopicName(),
-			Description:   topic.Description(),
-			FeedbackCount: int32(topic.FeedbackCount()),
-			Sentiment:     sqlc.FeedbackSentiment(topic.Sentiment()),
-			CreatedAt:     topic.CreatedAt(),
-			UpdatedAt:     topic.UpdatedAt(),
+	if _, err := queries.CreateTopicAnalysis(
+		ctx, sqlc.CreateTopicAnalysisParams{
+			ID:            topicAnalysis.ID(),
+			AnalysisID:    topicAnalysis.AnalysisID(),
+			TopicEnum:     sqlc.FeedbackTopicEnum(topicAnalysis.Topic()),
+			Summary:       topicAnalysis.Summary(),
+			FeedbackCount: int32(topicAnalysis.FeedbackCount()),
+			Sentiment:     sqlc.FeedbackSentiment(topicAnalysis.Sentiment()),
+			CreatedAt:     topicAnalysis.CreatedAt(),
+			UpdatedAt:     topicAnalysis.UpdatedAt(),
 		},
-	)
-	if err != nil {
-		return fmt.Errorf("failed to create topic: %w", err)
+	); err != nil {
+		return fmt.Errorf("failed to create topic analysis: %w", err)
 	}
 
 	return nil

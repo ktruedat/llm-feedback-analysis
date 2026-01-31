@@ -37,7 +37,7 @@ func (q *Queries) GetFeedbackIDsByTopicID(ctx context.Context, topicID uuid.UUID
 }
 
 const getTopicsByAnalysisID = `-- name: GetTopicsByAnalysisID :many
-SELECT id, analysis_id, topic_name, description, feedback_count, sentiment, created_at, updated_at FROM feedback.analysis_topics
+SELECT id, analysis_id, feedback_count, sentiment, created_at, updated_at, topic_enum, summary FROM feedback.analysis_topics
 WHERE analysis_id = $1
 ORDER BY created_at DESC
 `
@@ -54,12 +54,12 @@ func (q *Queries) GetTopicsByAnalysisID(ctx context.Context, analysisID uuid.UUI
 		if err := rows.Scan(
 			&i.ID,
 			&i.AnalysisID,
-			&i.TopicName,
-			&i.Description,
 			&i.FeedbackCount,
 			&i.Sentiment,
 			&i.CreatedAt,
 			&i.UpdatedAt,
+			&i.TopicEnum,
+			&i.Summary,
 		); err != nil {
 			return nil, err
 		}

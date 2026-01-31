@@ -12,12 +12,12 @@ import (
 	"github.com/google/uuid"
 )
 
-const createTopic = `-- name: CreateTopic :one
+const createTopicAnalysis = `-- name: CreateTopicAnalysis :one
 INSERT INTO feedback.analysis_topics (
     id,
     analysis_id,
-    topic_name,
-    description,
+    topic_enum,
+    summary,
     feedback_count,
     sentiment,
     created_at,
@@ -25,33 +25,33 @@ INSERT INTO feedback.analysis_topics (
 ) VALUES (
     $1,  -- id
     $2,  -- analysis_id
-    $3,  -- topic_name
-    $4,  -- description
+    $3,  -- topic_enum
+    $4,  -- summary
     $5,  -- feedback_count
     $6,  -- sentiment
     $7,  -- created_at
     $8   -- updated_at
 )
-RETURNING id, analysis_id, topic_name, description, feedback_count, sentiment, created_at, updated_at
+RETURNING id, analysis_id, feedback_count, sentiment, created_at, updated_at, topic_enum, summary
 `
 
-type CreateTopicParams struct {
+type CreateTopicAnalysisParams struct {
 	ID            uuid.UUID         `db:"id"`
 	AnalysisID    uuid.UUID         `db:"analysis_id"`
-	TopicName     string            `db:"topic_name"`
-	Description   string            `db:"description"`
+	TopicEnum     FeedbackTopicEnum `db:"topic_enum"`
+	Summary       string            `db:"summary"`
 	FeedbackCount int32             `db:"feedback_count"`
 	Sentiment     FeedbackSentiment `db:"sentiment"`
 	CreatedAt     time.Time         `db:"created_at"`
 	UpdatedAt     time.Time         `db:"updated_at"`
 }
 
-func (q *Queries) CreateTopic(ctx context.Context, arg CreateTopicParams) (Topic, error) {
-	row := q.db.QueryRow(ctx, createTopic,
+func (q *Queries) CreateTopicAnalysis(ctx context.Context, arg CreateTopicAnalysisParams) (Topic, error) {
+	row := q.db.QueryRow(ctx, createTopicAnalysis,
 		arg.ID,
 		arg.AnalysisID,
-		arg.TopicName,
-		arg.Description,
+		arg.TopicEnum,
+		arg.Summary,
 		arg.FeedbackCount,
 		arg.Sentiment,
 		arg.CreatedAt,
@@ -61,12 +61,12 @@ func (q *Queries) CreateTopic(ctx context.Context, arg CreateTopicParams) (Topic
 	err := row.Scan(
 		&i.ID,
 		&i.AnalysisID,
-		&i.TopicName,
-		&i.Description,
 		&i.FeedbackCount,
 		&i.Sentiment,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+		&i.TopicEnum,
+		&i.Summary,
 	)
 	return i, err
 }

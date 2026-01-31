@@ -47,8 +47,12 @@ type AnalysisRepository interface {
 	)
 	// GetLatest retrieves the latest analysis.
 	GetLatest(ctx context.Context, opts ...repository.RepoOption[Options]) (*analysis.Analysis, error)
-	// CreateTopic creates a topic for an analysis.
-	CreateTopic(ctx context.Context, topic *analysis.Topic, opts ...repository.RepoOption[Options]) error
+	// CreateTopicAnalysis creates a topic analysis for an analysis.
+	CreateTopicAnalysis(
+		ctx context.Context,
+		topicAnalysis *analysis.TopicAnalysis,
+		opts ...repository.RepoOption[Options],
+	) error
 	// CreateTopicAssignments creates feedback-topic assignments.
 	CreateTopicAssignments(
 		ctx context.Context,
@@ -57,12 +61,12 @@ type AnalysisRepository interface {
 		feedbackIDs []uuid.UUID,
 		opts ...repository.RepoOption[Options],
 	) error
-	// GetTopicsByAnalysisID retrieves all topics for an analysis.
+	// GetTopicsByAnalysisID retrieves all topic analyses for an analysis.
 	GetTopicsByAnalysisID(
 		ctx context.Context,
 		analysisID uuid.UUID,
 		opts ...repository.RepoOption[Options],
-	) ([]*analysis.Topic, error)
+	) ([]*analysis.TopicAnalysis, error)
 	// GetFeedbackIDsByTopicID retrieves all feedback IDs assigned to a topic.
 	GetFeedbackIDsByTopicID(
 		ctx context.Context,
@@ -85,7 +89,7 @@ type AnalysisRepository interface {
 }
 
 type Options struct {
-	Limit int
+	Limit  int
 	Offset int
 }
 

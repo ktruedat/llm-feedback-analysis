@@ -229,25 +229,31 @@ func (a *analyzer) performAnalysis(ctx context.Context, feedbacks []*feedback.Fe
 	}
 
 	// Log topics received from LLM
-	logger.Info("LLM analysis completed", "topics_count", len(llmResult.Topics), "overall_summary_length", len(llmResult.OverallSummary))
+	logger.Info(
+		"LLM analysis completed",
+		"topics_count",
+		len(llmResult.Topics),
+		"overall_summary_length",
+		len(llmResult.OverallSummary),
+	)
 	if len(llmResult.Topics) > 0 {
 		for i, t := range llmResult.Topics {
-			logger.Info("LLM topic received", "index", i, "name", t.Name, "feedback_ids_count", len(t.FeedbackIDs))
+			logger.Info(
+				"LLM topic received",
+				"index",
+				i,
+				"topic_enum",
+				string(t.Topic),
+				"feedback_ids_count",
+				len(t.FeedbackIDs),
+			)
 		}
 	} else {
 		logger.Info("No topics returned from LLM")
 	}
 
-	// Convert external result to services result for topics processing
-	topics := make([]external.Topic, len(llmResult.Topics))
-	for i, t := range llmResult.Topics {
-		topics[i] = external.Topic{
-			Name:        t.Name,
-			Description: t.Description,
-			FeedbackIDs: t.FeedbackIDs,
-			Sentiment:   t.Sentiment,
-		}
-	}
+	// Use topics directly from LLM result (already converted)
+	topics := llmResult.Topics
 	logger.Info("topics array prepared", "topics_count", len(topics))
 
 	// Update analysis with results
@@ -294,7 +300,14 @@ func (a *analyzer) performAnalysis(ctx context.Context, feedbacks []*feedback.Fe
 	// Create topics and their assignments
 	logger.Info("creating topics", "topics_count", len(topics), "analysis_id", analysisEntity.ID().String())
 	if err := a.createTopics(ctx, analysisEntity.ID(), topics, logger); err != nil {
-		logger.Error("failed to create topics", err, "topics_count", len(topics), "analysis_id", analysisEntity.ID().String())
+		logger.Error(
+			"failed to create topics",
+			err,
+			"topics_count",
+			len(topics),
+			"analysis_id",
+			analysisEntity.ID().String(),
+		)
 		logger.RecordSpanError(ctx, err)
 		// Don't return - analysis is already marked as success, topics are supplementary
 	} else {
@@ -329,66 +342,102 @@ func (a *analyzer) createTopics(
 		logger.Info(
 			"processing topic",
 			"index", i,
-			"name", llmTopic.Name,
-			"description_length", len(llmTopic.Description),
+			"topic_enum", string(llmTopic.Topic),
+			"summary_length", len(llmTopic.Summary),
 			"feedback_ids_count", len(llmTopic.FeedbackIDs),
 			"sentiment", string(llmTopic.Sentiment),
 		)
 
-		// Build topic domain object
-		topicBuilder := analysis.NewTopicBuilder().
+		// Build topic analysis domain object
+		topicAnalysisBuilder := analysis.NewTopicAnalysisBuilder().
 			WithAnalysisID(analysisID).
-			WithTopicName(llmTopic.Name).
-			WithDescription(llmTopic.Description).
+			WithTopic(llmTopic.Topic).
+			WithSummary(llmTopic.Summary).
 			WithSentiment(llmTopic.Sentiment).
 			WithFeedbackCount(len(llmTopic.FeedbackIDs))
 
-		topic, err := topicBuilder.Build()
+		topicAnalysis, err := topicAnalysisBuilder.Build()
 		if err != nil {
-			buildErr := fmt.Errorf("failed to build topic %s: %w", llmTopic.Name, err)
-			logger.Error("failed to build topic", buildErr, "topic_name", llmTopic.Name, "index", i)
+			buildErr := fmt.Errorf("failed to build topic analysis %s: %w", string(llmTopic.Topic), err)
+			logger.Error("failed to build topic analysis", buildErr, "topic_enum", string(llmTopic.Topic), "index", i)
 			logger.RecordSpanError(ctx, buildErr)
 			return buildErr
 		}
 
-		logger.Info("topic built successfully", "topic_id", topic.ID().String(), "topic_name", topic.TopicName())
+		logger.Info(
+			"topic analysis built successfully",
+			"topic_analysis_id",
+			topicAnalysis.ID().String(),
+			"topic_enum",
+			string(topicAnalysis.Topic()),
+		)
 
-		// Create topic in database
-		if err := a.analysisRepo.CreateTopic(ctx, topic); err != nil {
-			createErr := fmt.Errorf("failed to create topic %s in database: %w", llmTopic.Name, err)
-			logger.Error("failed to create topic in database", createErr, "topic_id", topic.ID().String(), "topic_name", llmTopic.Name)
+		// Create topic analysis in database
+		if err := a.analysisRepo.CreateTopicAnalysis(ctx, topicAnalysis); err != nil {
+			createErr := fmt.Errorf("failed to create topic analysis %s in database: %w", string(llmTopic.Topic), err)
+			logger.Error(
+				"failed to create topic analysis in database",
+				createErr,
+				"topic_analysis_id",
+				topicAnalysis.ID().String(),
+				"topic_enum",
+				string(llmTopic.Topic),
+			)
 			logger.RecordSpanError(ctx, createErr)
 			return createErr
 		}
 
-		logger.Info("topic created in database", "topic_id", topic.ID().String(), "topic_name", topic.TopicName())
+		logger.Info(
+			"topic analysis created in database",
+			"topic_analysis_id",
+			topicAnalysis.ID().String(),
+			"topic_enum",
+			string(topicAnalysis.Topic()),
+		)
 
 		// Create feedback-topic assignments
 		if len(llmTopic.FeedbackIDs) > 0 {
 			logger.Info(
 				"creating topic assignments",
-				"topic_id", topic.ID().String(),
+				"topic_analysis_id", topicAnalysis.ID().String(),
 				"feedback_ids_count", len(llmTopic.FeedbackIDs),
 			)
 			if err := a.analysisRepo.CreateTopicAssignments(
 				ctx,
 				analysisID,
-				topic.ID(),
+				topicAnalysis.ID(),
 				llmTopic.FeedbackIDs,
 			); err != nil {
-				assignErr := fmt.Errorf("failed to create topic assignments for topic %s: %w", llmTopic.Name, err)
-				logger.Error("failed to create topic assignments", assignErr, "topic_id", topic.ID().String(), "topic_name", llmTopic.Name, "feedback_ids_count", len(llmTopic.FeedbackIDs))
+				assignErr := fmt.Errorf(
+					"failed to create topic assignments for topic %s: %w",
+					string(llmTopic.Topic),
+					err,
+				)
+				logger.Error(
+					"failed to create topic assignments",
+					assignErr,
+					"topic_analysis_id",
+					topicAnalysis.ID().String(),
+					"topic_enum",
+					string(llmTopic.Topic),
+					"feedback_ids_count",
+					len(llmTopic.FeedbackIDs),
+				)
 				logger.RecordSpanError(ctx, assignErr)
 				return assignErr
 			}
 
 			logger.Info(
 				"topic assignments created successfully",
-				"topic_id", topic.ID().String(),
+				"topic_analysis_id", topicAnalysis.ID().String(),
 				"feedback_count", len(llmTopic.FeedbackIDs),
 			)
 		} else {
-			logger.Info("topic has no feedback IDs, skipping assignments", "topic_id", topic.ID().String())
+			logger.Info(
+				"topic analysis has no feedback IDs, skipping assignments",
+				"topic_analysis_id",
+				topicAnalysis.ID().String(),
+			)
 		}
 	}
 

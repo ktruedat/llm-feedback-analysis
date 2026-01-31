@@ -77,8 +77,8 @@ type AnalysisResponse struct {
 
 // TopicResponse represents a topic in the LLM response.
 type TopicResponse struct {
-	Name        string   `json:"name"`
-	Description string   `json:"description"`
+	TopicEnum   string   `json:"topic_enum"`
+	Summary     string   `json:"summary"`
 	FeedbackIDs []string `json:"feedback_ids"`
 	Sentiment   string   `json:"sentiment"`
 }
@@ -236,21 +236,42 @@ func (c *OpenAIClient) buildRequestBody(userPayload Map) ([]byte, error) {
 
 // buildSystemPrompt creates the system prompt for the LLM.
 func (c *OpenAIClient) buildSystemPrompt() string {
-	return `Your task is to analyze customer feedback and provide:
-1. An overall summary of all feedback
-2. The overall sentiment (positive, mixed, or negative)
-3. Key insights as bullet points
-4. Topics/themes identified in the feedback, with each topic including:
-   - A descriptive name
-   - A detailed description
-   - The feedback IDs that belong to this topic (a feedback can belong to multiple topics)
-   - The sentiment for this specific topic
+	// Build the topics list with descriptions for the prompt
+	topicsList := ""
+	for i, topic := range analysis.AllTopics() {
+		if i > 0 {
+			topicsList += "\n\n"
+		}
+		topicsList += fmt.Sprintf("%d. %s (%s)\n%s", i+1, topic.DisplayName(), string(topic), topic.Description())
+	}
 
-When analyzing topics:
-- Group similar feedback together
-- A single feedback can belong to multiple topics if it addresses multiple themes
-- Provide clear, actionable insights
-- Be specific about which feedback IDs map to which topics`
+	return fmt.Sprintf(
+		`Your task is to analyze customer feedback and categorize it into predefined business topics.
+
+AVAILABLE TOPICS:
+%s
+
+INSTRUCTIONS:
+1. Analyze all feedback and provide:
+   - An overall summary of all feedback
+   - The overall sentiment (positive, mixed, or negative)
+   - Key insights as bullet points
+
+2. Categorize feedbacks into topics:
+   - You MUST use one of the predefined topic enum values listed above
+   - A single feedback can belong to multiple topics if it addresses multiple themes
+   - For each topic, provide:
+     * The topic_enum value (one of the predefined values)
+     * A summary explaining why this feedback belongs to this topic and what specific aspects it addresses
+     * The feedback IDs that belong to this topic
+     * The sentiment for this specific topic
+
+3. Important rules:
+   - DO NOT create new topic names - only use the predefined topic enum values
+   - Group similar feedback together under the most appropriate topic(s)
+   - Be specific about which feedback IDs map to which topics
+   - Provide clear, actionable insights`, topicsList,
+	)
 }
 
 // extractOutputText extracts the output text from the API response.
@@ -280,8 +301,19 @@ func (c *OpenAIClient) convertTopics(ctx context.Context, topics []TopicResponse
 			id, err := uuid.Parse(idStr)
 			if err != nil {
 				// Log invalid UUID but continue - this shouldn't happen with proper schema validation
-				c.logger.Warning("failed to parse feedback ID for topic", "feedback_id", idStr, "topic_name", topic.Name, "error", err.Error())
-				c.logger.RecordSpanError(ctx, fmt.Errorf("failed to parse feedback ID '%s' for topic '%s': %w", idStr, topic.Name, err))
+				c.logger.Warning(
+					"failed to parse feedback ID for topic",
+					"feedback_id",
+					idStr,
+					"topic",
+					topic.TopicEnum,
+					"error",
+					err.Error(),
+				)
+				c.logger.RecordSpanError(
+					ctx,
+					fmt.Errorf("failed to parse feedback ID '%s' for topic '%s': %w", idStr, topic.TopicEnum, err),
+				)
 				continue
 			}
 			feedbackIDs = append(feedbackIDs, id)
@@ -289,15 +321,31 @@ func (c *OpenAIClient) convertTopics(ctx context.Context, topics []TopicResponse
 
 		// Only add topic if it has at least some valid feedback IDs or if it's a valid topic
 		// (topics without feedback IDs might still be valid if the LLM didn't assign any)
+		// Parse topic enum
+		topicValue := analysis.Topic(topic.TopicEnum)
+		if !topicValue.IsValid() {
+			c.logger.Warning("invalid topic enum from LLM", "topic_enum", topic.TopicEnum, "index", i)
+			c.logger.RecordSpanError(ctx, fmt.Errorf("invalid topic enum '%s' from LLM response", topic.TopicEnum))
+			continue
+		}
+
 		result = append(
 			result, external.Topic{
-				Name:        topic.Name,
-				Description: topic.Description,
+				Topic:       topicValue,
+				Summary:     topic.Summary,
 				FeedbackIDs: feedbackIDs,
 				Sentiment:   analysis.Sentiment(topic.Sentiment),
 			},
 		)
-		c.logger.Debug("converted topic", "index", i, "topic_name", topic.Name, "feedback_ids_count", len(feedbackIDs))
+		c.logger.Debug(
+			"converted topic",
+			"index",
+			i,
+			"topic_enum",
+			topic.TopicEnum,
+			"feedback_ids_count",
+			len(feedbackIDs),
+		)
 	}
 	return result
 }

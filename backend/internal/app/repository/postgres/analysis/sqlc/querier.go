@@ -13,7 +13,7 @@ import (
 type Querier interface {
 	CreateAnalysis(ctx context.Context, arg CreateAnalysisParams) (Analysis, error)
 	CreateAnalyzedFeedback(ctx context.Context, arg CreateAnalyzedFeedbackParams) error
-	CreateTopic(ctx context.Context, arg CreateTopicParams) (Topic, error)
+	CreateTopicAnalysis(ctx context.Context, arg CreateTopicAnalysisParams) (Topic, error)
 	CreateTopicAssignment(ctx context.Context, arg CreateTopicAssignmentParams) error
 	GetAnalysisByID(ctx context.Context, id uuid.UUID) (Analysis, error)
 	GetFeedbackIDsByAnalysisID(ctx context.Context, analysisID uuid.UUID) ([]uuid.UUID, error)

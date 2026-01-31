@@ -30,8 +30,8 @@ type AnalysisResult struct {
 
 // Topic represents a topic identified by the LLM.
 type Topic struct {
-	Name        string
-	Description string
+	Topic       analysis.Topic
+	Summary     string
 	FeedbackIDs []uuid.UUID
 	Sentiment   analysis.Sentiment
 }

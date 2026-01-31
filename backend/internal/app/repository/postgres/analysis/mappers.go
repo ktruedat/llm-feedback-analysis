@@ -40,13 +40,13 @@ func mapSQLCAnalysisToDomain(sqlcAnalysis sqlc.Analysis) *analysis.Analysis {
 	return builder.BuildUnchecked()
 }
 
-// mapSQLCTopicToDomain maps a SQLC topic model to a domain topic entity.
-func mapSQLCTopicToDomain(sqlcTopic sqlc.Topic) *analysis.Topic {
-	builder := analysis.NewTopicBuilder().
+// mapSQLCTopicToDomain maps a SQLC topic model to a domain topic analysis entity.
+func mapSQLCTopicToDomain(sqlcTopic sqlc.Topic) *analysis.TopicAnalysis {
+	builder := analysis.NewTopicAnalysisBuilder().
 		WithID(sqlcTopic.ID).
 		WithAnalysisID(sqlcTopic.AnalysisID).
-		WithTopicName(sqlcTopic.TopicName).
-		WithDescription(sqlcTopic.Description).
+		WithTopic(analysis.Topic(sqlcTopic.TopicEnum)).
+		WithSummary(sqlcTopic.Summary).
 		WithFeedbackCount(int(sqlcTopic.FeedbackCount)).
 		WithSentiment(analysis.Sentiment(sqlcTopic.Sentiment)).
 		WithCreatedAt(sqlcTopic.CreatedAt).

@@ -1,9 +1,9 @@
--- name: CreateTopic :one
+-- name: CreateTopicAnalysis :one
 INSERT INTO feedback.analysis_topics (
     id,
     analysis_id,
-    topic_name,
-    description,
+    topic_enum,
+    summary,
     feedback_count,
     sentiment,
     created_at,
@@ -11,8 +11,8 @@ INSERT INTO feedback.analysis_topics (
 ) VALUES (
     $1,  -- id
     $2,  -- analysis_id
-    $3,  -- topic_name
-    $4,  -- description
+    $3,  -- topic_enum
+    $4,  -- summary
     $5,  -- feedback_count
     $6,  -- sentiment
     $7,  -- created_at
